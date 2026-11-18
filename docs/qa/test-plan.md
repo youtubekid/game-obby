@@ -27,7 +27,9 @@ because GPU and driver output differs. Update with `npm run test:e2e:update` and
 
 ## Budgets
 
-- Initial JS (entry chunk, gzip): ≤ 450 kB (currently ~365 kB).
+- Initial JS (entry chunk + its static imports, gzip): ≤ 450 kB (currently ~424 kB). Enforced by the
+  `entry-bundle-budget` plugin in `vite.config.ts`: every build (`check`, CI, deploy) fails over budget.
+  `BUNDLE_BUDGET_KB` can only lower the budget; `BUNDLE_BUDGET_KB=100 npm run build` shows the failure.
 - Total download before first frame: TBD once assets exist.
 - Frame rate: ≥ 60 fps on the target device class (see GDD), measured with `window.__GAME__.fps()`.
 

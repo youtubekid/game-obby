@@ -21,7 +21,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   sky-island course with checkpoints, timer and deaths, Roblox-style blocky figure, low-poly from primitives,
   mobile first-class, SFX only, local best times). ADR 0005 (kinematic controller, no Havok) and ADR 0006
   (mobile/touch first-class).
-- M2 planned: T-002…T-018 in `backlog.md` (T-001 retargeted to M3 as the sky backdrop). **Next step: `/next`
-  (or `/loop /next`), starting with T-002.**
+- M2 planned: T-002…T-018 in `backlog.md` (T-001 retargeted to M3 as the sky backdrop). T-002 done (bundle
+  budget enforced on every build; initial JS 422/450 kB). **Next step: `/next` → T-003.**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

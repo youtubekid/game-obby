@@ -21,13 +21,15 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-002 Bundle size budget check in CI
 
-- Status: Ready
+- Status: Done (2026-11-18)
 - Milestone: M2
 - Labels: tech
 - Goal: CI fails when the gzip size of the initial JS exceeds the budget in `docs/qa/test-plan.md`.
 - Acceptance criteria:
-  - [ ] `npm run check` fails if the entry chunk gzip exceeds the budget.
+  - [x] `npm run check` fails if the entry chunk gzip exceeds the budget.
 - Verification: script unit-tested; run once with a lowered budget to see it fail.
+- Result: `entry-bundle-budget` Vite plugin sums gzip of the entry + its static imports (17 chunks, 422 kB of
+  450 kB) and fails every build over budget; `BUNDLE_BUDGET_KB=100` build exits 1. Headroom is only ~28 kB.
 
 ### T-003 Replace the placeholder scene with a fixed-step sky test scene
 
@@ -46,6 +48,8 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 - Verification: unit tests in `tests/unit/fixedStep.test.ts`; existing e2e smoke passes; visual baselines
   regenerated and reviewed (WebGPU + WebGL2).
 - Notes: `src/game/Game.ts`, new `src/game/sim/`. Keep shadow map ≤ 1024 for mobile (ADR 0006).
+  Initial JS has only ~28 kB headroom (T-002): dropping PBR, the rendering pipeline and the torus knot should free
+  room; record the new size in `docs/qa/test-plan.md`.
 
 ### T-004 Declarative course data and course builder
 
