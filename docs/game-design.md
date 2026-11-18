@@ -11,6 +11,18 @@
 - Genre: 3D platformer / obstacle course ("obby"). Original course, obstacles and art.
 - Target session length: TBD
 
+## Open questions (next `/design` round)
+
+Asked on 2026-11-18, not answered yet. Recommendations are marked (rec.).
+
+1. Camera: third-person follow (rec.) / first-person / side-on 2.5D.
+2. Obstacles for the first course (multi-select): jumps & moving platforms · hazards with respawn at checkpoint
+   (lava, spinning bars) · physics obstacles (seesaws, bounce pads, rolling balls; implies Havok) · climbing & beams.
+3. Structure: one long course split into checkpointed stages with timer + death counter (rec.) / separate levels
+   with ratings / endless procedural.
+4. Look: stylised low-poly, bright colours, buildable in code (rec.) / neon-abstract / asset-pack PBR models.
+5. Devices: desktop only, or also mobile/tablet with touch controls?
+
 ## Core loop
 
 - What the player does second to second: TBD

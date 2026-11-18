@@ -3,6 +3,13 @@
 3D browser game: **Babylon.js 9** (WebGPU, falls back to WebGL2) + **TypeScript 6** + **Vite 8**, shipped as a static
 site to **Cloudflare** (assets only, `wrangler.toml`), servable from any subfolder.
 
+## Session start
+
+1. Read `docs/roadmap.md` → "Current status" for where work stopped and the next step.
+2. Fresh checkout: `npm ci && npx playwright install --with-deps chromium`. On GPU-less machines (e.g. remote/cloud
+   sessions on Linux) WebGPU e2e tests skip and WebGL2 runs on SwiftShader; that is expected.
+3. Before ending a session, update "Current status" in `docs/roadmap.md` and commit, so the next session can resume.
+
 ## Commands
 
 | Command                   | What it does                                                                 |
