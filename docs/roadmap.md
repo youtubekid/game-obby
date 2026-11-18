@@ -6,8 +6,8 @@ isn't done into tasks in `backlog.md`.
 | #   | Milestone                                                                       | Status      |
 | --- | ------------------------------------------------------------------------------- | ----------- |
 | M0  | Foundation: toolchain, rendering, tests, CI/CD, agent loop                      | Done        |
-| M1  | Design: game design document complete enough to plan M2 (`/design`)             | In progress |
-| M2  | Playable prototype: core loop with placeholder art, controls, win/lose          | Not started |
+| M1  | Design: game design document complete enough to plan M2 (`/design`)             | Done        |
+| M2  | Playable prototype: core loop with placeholder art, controls, win/lose          | In progress |
 | M3  | Vertical slice: one polished level/area with final art style, audio and UI      | Not started |
 | M4  | Content and progression                                                         | Not started |
 | M5  | Release polish: performance, accessibility, loading, mobile/touch (if in scope) | Not started |
@@ -20,6 +20,8 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
 - M1 design interview done: `game-design.md` has no blocking `TBD` for M2 (third-person camera, one ~5-stage
   sky-island course with checkpoints, timer and deaths, Roblox-style blocky figure, low-poly from primitives,
   mobile first-class, SFX only, local best times). ADR 0005 (kinematic controller, no Havok) and ADR 0006
-  (mobile/touch first-class). **Next step: run `/plan` for M2.**
+  (mobile/touch first-class).
+- M2 planned: T-002…T-018 in `backlog.md` (T-001 retargeted to M3 as the sky backdrop). **Next step: `/next`
+  (or `/loop /next`), starting with T-002.**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).
