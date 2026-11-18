@@ -17,7 +17,9 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
 ## Current status (2026-11-18)
 
 - M0 done (commit 083c5a7): foundation, CI/CD config, agent loop.
-- M1 in progress: genre decided = **3D obby (obstacle course)**. Open questions are listed in
-  `game-design.md` → "Open questions". **Next step: run `/design` to answer them, then `/plan` for M2.**
+- M1 design interview done: `game-design.md` has no blocking `TBD` for M2 (third-person camera, one ~5-stage
+  sky-island course with checkpoints, timer and deaths, Roblox-style blocky figure, low-poly from primitives,
+  mobile first-class, SFX only, local best times). ADR 0005 (kinematic controller, no Havok) and ADR 0006
+  (mobile/touch first-class). **Next step: run `/plan` for M2.**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).
