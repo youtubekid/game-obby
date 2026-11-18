@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      babylon:
+        patterns: ['@babylonjs/*']
+      tooling:
+        patterns: ['*']
+        exclude-patterns: ['@babylonjs/*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -1,0 +1,7 @@
+dist/
+coverage/
+playwright-report/
+test-results/
+.wrangler/
+package-lock.json
+tests/e2e/**/*-snapshots/

@@ -1,0 +1,17 @@
+# Cloudflare Workers static assets (no Worker script, assets only).
+# `npm run deploy` builds into dist/<GAME_BASE_PATH>/ and uploads dist/.
+# Docs: https://developers.cloudflare.com/workers/static-assets/
+name = "game1"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./dist"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+
+# To serve the game from a subfolder of an existing domain, set GAME_BASE_PATH in .env
+# (e.g. /games/game1/) and add a route matching that path:
+# routes = [
+#   { pattern = "example.com/games/game1/*", zone_name = "example.com" }
+# ]
+# Without routes the game is available on <name>.<account>.workers.dev<GAME_BASE_PATH>.
