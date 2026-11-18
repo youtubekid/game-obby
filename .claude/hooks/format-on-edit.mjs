@@ -2,7 +2,7 @@
 // Remaining lint errors are reported back to Claude (exit code 2) so they get fixed immediately.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { extname, relative, resolve } from 'node:path';
+import { extname, isAbsolute, relative, resolve } from 'node:path';
 
 const input = JSON.parse(readFileSync(0, 'utf8'));
 const projectDir = resolve(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
@@ -11,7 +11,11 @@ if (!filePath) process.exit(0);
 
 const absolute = resolve(filePath);
 const rel = relative(projectDir, absolute);
-if (rel.startsWith('..') || /(^|[\\/])(node_modules|dist|test-results)[\\/]/.test(rel)) {
+if (
+  rel.startsWith('..') ||
+  isAbsolute(rel) ||
+  /(^|[\\/])(node_modules|dist|test-results)[\\/]/.test(rel)
+) {
   process.exit(0);
 }
 
