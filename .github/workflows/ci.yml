@@ -37,7 +37,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # CI runners have no GPU: WebGL2 runs on SwiftShader; WebGPU tests skip when no adapter exists.
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
