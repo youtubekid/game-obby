@@ -6,27 +6,29 @@ import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
-import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
-import { CreateTorusKnot } from '@babylonjs/core/Meshes/Builders/torusKnotBuilder';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { DefaultRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline';
 import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
+import { FixedStepper } from './sim/fixedStep';
 
-/** Fixed simulation step used in test mode so frames are reproducible. */
+/** Fixed simulation step (60 Hz) used in every mode, so gameplay is frame-rate independent. */
 export const FIXED_STEP_MS = 1000 / 60;
 
+/** Sky-blue background of the sky-island setting (see docs/game-design.md). */
+const SKY_COLOR = new Color4(0.55, 0.78, 0.97, 1);
+
 /**
- * Placeholder "hello world" scene proving the render pipeline:
- * PBR materials, real-time shadows and post-processing.
- * Replace with real gameplay once the game design is settled (see docs/game-design.md).
+ * Sky test scene: one floating platform and a bobbing marker cube, lit for the bright
+ * low-poly look. The course, player and camera replace the placeholders in later tasks.
  */
 export class Game {
   readonly scene: Scene;
-  private readonly hero: Mesh;
+  private readonly marker: Mesh;
+  private readonly stepper = new FixedStepper(FIXED_STEP_MS);
   private elapsedMs = 0;
   private steps = 0;
   private renderedFrames = 0;
@@ -36,51 +38,51 @@ export class Game {
     options: LaunchOptions,
   ) {
     this.scene = new Scene(engine);
-    this.scene.clearColor = new Color4(0.04, 0.05, 0.09, 1);
+    this.scene.clearColor = SKY_COLOR;
+    this.scene.ambientColor = new Color3(0.35, 0.4, 0.5);
 
     const camera = new ArcRotateCamera(
       'camera',
       -Math.PI / 3,
-      Math.PI / 3,
-      9,
+      Math.PI / 3.2,
+      12,
       Vector3.Zero(),
       this.scene,
     );
     camera.lowerRadiusLimit = 4;
-    camera.upperRadiusLimit = 20;
+    camera.upperRadiusLimit = 30;
     if (!options.test) camera.attachControl(true);
 
     const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
-    ambient.intensity = 0.35;
-    ambient.groundColor = new Color3(0.1, 0.1, 0.2);
+    ambient.intensity = 0.7;
+    ambient.groundColor = new Color3(0.45, 0.55, 0.7);
 
-    const sun = new DirectionalLight('sun', new Vector3(-1, -2, -1), this.scene);
-    sun.position = new Vector3(10, 20, 10);
-    sun.intensity = 2.5;
+    const sun = new DirectionalLight('sun', new Vector3(-1, -2.5, -1.2), this.scene);
+    sun.position = new Vector3(10, 25, 12);
+    sun.intensity = 0.9;
 
-    const ground = CreateGround('ground', { width: 20, height: 20 }, this.scene);
-    ground.material = pbr('groundMat', this.scene, new Color3(0.18, 0.2, 0.26), 0, 0.9);
-    ground.receiveShadows = true;
+    const platform = CreateBox('platform', { width: 6, height: 1, depth: 6 }, this.scene);
+    platform.position.y = -0.5;
+    platform.material = flat('platformMat', this.scene, new Color3(0.36, 0.78, 0.36));
+    platform.receiveShadows = true;
 
-    this.hero = CreateTorusKnot('hero', { radius: 1, tube: 0.32, radialSegments: 128 }, this.scene);
-    this.hero.position.y = 2;
-    this.hero.material = pbr('heroMat', this.scene, new Color3(1, 0.55, 0.15), 1, 0.25);
+    this.marker = CreateBox('marker', { size: 1 }, this.scene);
+    this.marker.position.y = 1.5;
+    this.marker.material = flat('markerMat', this.scene, new Color3(1, 0.62, 0.15));
 
-    const shadows = new ShadowGenerator(2048, sun);
-    shadows.useBlurExponentialShadowMap = true;
-    shadows.addShadowCaster(this.hero);
-
-    const pipeline = new DefaultRenderingPipeline('pipeline', true, this.scene, [camera]);
-    pipeline.fxaaEnabled = true;
-    pipeline.bloomEnabled = true;
-    pipeline.bloomThreshold = 0.8;
-    pipeline.imageProcessingEnabled = true;
-    pipeline.imageProcessing.toneMappingEnabled = true;
+    // Small shadow map on purpose: mobile is a first-class target (ADR 0006).
+    const shadows = new ShadowGenerator(1024, sun);
+    shadows.usePercentageCloserFiltering = true;
+    shadows.addShadowCaster(this.marker);
 
     this.scene.onBeforeRenderObservable.add(() => {
       this.renderedFrames++;
-      if (!options.test) this.update(engine.getDeltaTime());
-      else if (this.steps < options.freezeAtStep) this.update(FIXED_STEP_MS);
+      if (options.test) {
+        if (this.steps < options.freezeAtStep) this.update(FIXED_STEP_MS);
+        return;
+      }
+      const steps = this.stepper.advance(engine.getDeltaTime());
+      for (let i = 0; i < steps; i++) this.update(FIXED_STEP_MS);
     });
   }
 
@@ -94,13 +96,13 @@ export class Game {
     return this.steps;
   }
 
-  /** Advances the simulation. Depends only on accumulated time so test runs are deterministic. */
+  /** Advances the simulation by one fixed step. Depends only on accumulated time (deterministic). */
   update(deltaMs: number): void {
     this.steps++;
     this.elapsedMs += deltaMs;
     const t = this.elapsedMs / 1000;
-    this.hero.rotation.y = t * 0.6;
-    this.hero.rotation.x = t * 0.25;
+    this.marker.position.y = 1.5 + Math.sin(t * 2) * 0.4;
+    this.marker.rotation.y = t * 0.8;
   }
 
   start(): void {
@@ -115,16 +117,11 @@ export class Game {
   }
 }
 
-function pbr(
-  name: string,
-  scene: Scene,
-  albedo: Color3,
-  metallic: number,
-  roughness: number,
-): PBRMaterial {
-  const material = new PBRMaterial(name, scene);
-  material.albedoColor = albedo;
-  material.metallic = metallic;
-  material.roughness = roughness;
+/** Matte, non-metallic material for the flat low-poly look. */
+function flat(name: string, scene: Scene, color: Color3): StandardMaterial {
+  const material = new StandardMaterial(name, scene);
+  material.diffuseColor = color;
+  material.ambientColor = color;
+  material.specularColor = Color3.Black();
   return material;
 }

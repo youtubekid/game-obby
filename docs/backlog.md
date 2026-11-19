@@ -33,18 +33,20 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-003 Replace the placeholder scene with a fixed-step sky test scene
 
-- Status: Ready
+- Status: Done (2026-11-20)
 - Milestone: M2
 - Labels: tech
 - Goal: the torus-knot demo is gone; the game opens on a bright sky-blue scene with one test platform, and the
   simulation runs on a fixed 60 Hz step in every mode (not only test mode).
 - Acceptance criteria:
-  - [ ] Pure `src/game/sim/fixedStep.ts`: accumulator that turns variable frame deltas into N fixed steps, clamps
+  - [x] Pure `src/game/sim/fixedStep.ts`: accumulator that turns variable frame deltas into N fixed steps, clamps
         huge deltas (tab switch) to a max step count, and exposes the interpolation alpha.
-  - [ ] `Game` uses it in normal mode; test mode keeps `?freeze=N` behaviour.
-  - [ ] Scene: light-blue clear colour, hemispheric + directional light with shadows, one box platform,
+  - [x] `Game` uses it in normal mode; test mode keeps `?freeze=N` behaviour.
+  - [x] Scene: light-blue clear colour, hemispheric + directional light with shadows, one box platform,
         flat-shaded low-poly materials (`StandardMaterial` or PBR non-metallic). Torus knot and bloom removed.
-  - [ ] `window.__GAME__.stepCount()` still matches the frozen step count in test mode.
+  - [x] `window.__GAME__.stepCount()` still matches the frozen step count in test mode.
+- Result: `FixedStepper` (6 unit tests) drives normal mode; sky scene with platform + bobbing marker; e2e asserts
+  freeze step count and ~60 steps/s in normal mode; baselines reviewed; initial JS 422 → 360 kB.
 - Verification: unit tests in `tests/unit/fixedStep.test.ts`; existing e2e smoke passes; visual baselines
   regenerated and reviewed (WebGPU + WebGL2).
 - Notes: `src/game/Game.ts`, new `src/game/sim/`. Keep shadow map ≤ 1024 for mobile (ADR 0006).

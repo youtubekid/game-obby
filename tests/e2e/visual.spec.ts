@@ -6,7 +6,7 @@ import { hasWebGpuAdapter, openGame, projectRenderer } from './helpers';
 // and are only compared where a baseline exists for the current platform (see docs/qa/test-plan.md).
 // Regenerate with `npm run test:e2e:update` after an intended visual change, then review the images.
 test.describe('visual @visual', () => {
-  test('placeholder scene matches baseline', async ({ page }, testInfo) => {
+  test('sky test scene matches baseline', async ({ page }, testInfo) => {
     const renderer = projectRenderer(testInfo);
     if (renderer === 'webgpu') {
       test.skip(!(await hasWebGpuAdapter(page)), 'No WebGPU adapter available in this browser');
