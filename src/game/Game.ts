@@ -13,6 +13,10 @@ import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
+import { buildCourse, type BuiltCourse } from './course/buildCourse';
+import { course1 } from './course/course1';
+import { allSolids, type Course } from './course/types';
+import { validateCourse } from './course/validateCourse';
 import { FixedStepper } from './sim/fixedStep';
 
 /** Fixed simulation step (60 Hz) used in every mode, so gameplay is frame-rate independent. */
@@ -22,12 +26,15 @@ export const FIXED_STEP_MS = 1000 / 60;
 const SKY_COLOR = new Color4(0.55, 0.78, 0.97, 1);
 
 /**
- * Sky test scene: one floating platform and a bobbing marker cube, lit for the bright
- * low-poly look. The course, player and camera replace the placeholders in later tasks.
+ * Sky scene with the course built from data and a bobbing marker cube at the spawn point.
+ * The player and follow camera replace the marker and orbit camera in later tasks.
  */
 export class Game {
   readonly scene: Scene;
+  readonly course: Course = course1;
+  private readonly builtCourse: BuiltCourse;
   private readonly marker: Mesh;
+  private readonly markerBaseY: number;
   private readonly stepper = new FixedStepper(FIXED_STEP_MS);
   private elapsedMs = 0;
   private steps = 0;
@@ -43,10 +50,10 @@ export class Game {
 
     const camera = new ArcRotateCamera(
       'camera',
-      -Math.PI / 3,
-      Math.PI / 3.2,
-      12,
-      Vector3.Zero(),
+      -Math.PI / 4,
+      Math.PI / 3,
+      26,
+      new Vector3(0, 0, 9),
       this.scene,
     );
     camera.lowerRadiusLimit = 4;
@@ -61,18 +68,22 @@ export class Game {
     sun.position = new Vector3(10, 25, 12);
     sun.intensity = 0.9;
 
-    const platform = CreateBox('platform', { width: 6, height: 1, depth: 6 }, this.scene);
-    platform.position.y = -0.5;
-    platform.material = flat('platformMat', this.scene, new Color3(0.36, 0.78, 0.36));
-    platform.receiveShadows = true;
-
-    this.marker = CreateBox('marker', { size: 1 }, this.scene);
-    this.marker.position.y = 1.5;
-    this.marker.material = flat('markerMat', this.scene, new Color3(1, 0.62, 0.15));
-
     // Small shadow map on purpose: mobile is a first-class target (ADR 0006).
     const shadows = new ShadowGenerator(1024, sun);
     shadows.usePercentageCloserFiltering = true;
+
+    // Catch authoring mistakes early in dev and tests; production trusts the unit-tested data.
+    if (import.meta.env.DEV || options.test) {
+      const errors = validateCourse(this.course);
+      if (errors.length > 0) throw new Error(`Invalid course: ${errors.join('; ')}`);
+    }
+    this.builtCourse = buildCourse(this.scene, this.course, shadows);
+
+    const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
+    this.marker = CreateBox('marker', { size: 1 }, this.scene);
+    this.markerBaseY = spawn.y + 1.5;
+    this.marker.position.set(spawn.x, this.markerBaseY, spawn.z);
+    this.marker.material = flat('markerMat', this.scene, new Color3(1, 0.62, 0.15));
     shadows.addShadowCaster(this.marker);
 
     this.scene.onBeforeRenderObservable.add(() => {
@@ -96,12 +107,21 @@ export class Game {
     return this.steps;
   }
 
+  /** Size of the loaded course, for tests. */
+  get courseStats(): { stages: number; solids: number; meshes: number } {
+    return {
+      stages: this.course.stages.length,
+      solids: allSolids(this.course).length,
+      meshes: this.builtCourse.meshes.length,
+    };
+  }
+
   /** Advances the simulation by one fixed step. Depends only on accumulated time (deterministic). */
   update(deltaMs: number): void {
     this.steps++;
     this.elapsedMs += deltaMs;
     const t = this.elapsedMs / 1000;
-    this.marker.position.y = 1.5 + Math.sin(t * 2) * 0.4;
+    this.marker.position.y = this.markerBaseY + Math.sin(t * 2) * 0.4;
     this.marker.rotation.y = t * 0.8;
   }
 
@@ -113,6 +133,7 @@ export class Game {
 
   dispose(): void {
     this.engine.stopRenderLoop();
+    this.builtCourse.dispose();
     this.scene.dispose();
   }
 }

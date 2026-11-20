@@ -25,6 +25,12 @@ test.describe('smoke', () => {
     // Test mode stops simulating at the freeze step while rendering continues.
     expect(state.stepCount).toBe(freeze);
     expect(state.frameCount).toBeGreaterThan(freeze);
+    // The course is built from data (T-004).
+    const course = await page.evaluate(() => window.__GAME__?.course());
+    expect(course?.stages).toBeGreaterThanOrEqual(1);
+    expect(course?.solids).toBeGreaterThan(1);
+    // Solids are merged per colour: course1 stage 1 uses three colours.
+    expect(course?.meshes).toBe(3);
     await expect(page.locator('#build-info')).toContainText(renderer);
 
     const screenshot = await page.locator('#game-canvas').screenshot();

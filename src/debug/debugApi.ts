@@ -14,6 +14,8 @@ export interface GameDebugApi {
   stepCount(): number;
   fps(): number;
   meshCount(): number;
+  /** Size of the loaded course; `meshes` is the number of merged course meshes (one per colour). */
+  course(): { stages: number; solids: number; meshes: number };
 }
 
 declare global {
@@ -32,6 +34,7 @@ export function installDebugApi(version: string): GameDebugApi {
     stepCount: () => 0,
     fps: () => 0,
     meshCount: () => 0,
+    course: () => ({ stages: 0, solids: 0, meshes: 0 }),
   };
   window.__GAME__ = api;
   return api;
@@ -43,5 +46,6 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.stepCount = () => game.stepCount;
   api.fps = () => game.scene.getEngine().getFps();
   api.meshCount = () => game.scene.meshes.length;
+  api.course = () => game.courseStats;
   api.ready = true;
 }

@@ -55,20 +55,23 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-004 Declarative course data and course builder
 
-- Status: Ready
+- Status: Done (2026-11-20)
 - Milestone: M2
 - Labels: feature, tech
 - Goal: the level is described as data (stages → static solids with size, position, colour, kind) and built into
   meshes; stage 1 shows a short row of platforms floating in the sky.
 - Acceptance criteria:
-  - [ ] Pure types in `src/game/course/types.ts` (`Course`, `Stage`, `Solid` with AABB, `kind: 'platform'` for
+  - [x] Pure types in `src/game/course/types.ts` (`Course`, `Stage`, `Solid` with AABB, `kind: 'platform'` for
         now, extensible union for later kinds) and `src/game/course/course1.ts` with a stub stage 1.
-  - [ ] Pure `validateCourse()` rejects overlapping/degenerate solids and stages without a checkpoint spawn point.
-  - [ ] `src/game/course/buildCourse.ts` creates meshes (merged or thin-instanced per material) and returns a
+  - [x] Pure `validateCourse()` rejects overlapping/degenerate solids and stages without a checkpoint spawn point.
+  - [x] `src/game/course/buildCourse.ts` creates meshes (merged or thin-instanced per material) and returns a
         disposable handle.
-  - [ ] Debug API: `course()` → `{ stages, solids }` counts.
+  - [x] Debug API: `course()` → `{ stages, solids }` counts.
 - Verification: unit tests for `validateCourse`; e2e asserts `course().solids > 1`; visual baseline.
 - Notes: collision geometry must come from the same data (used by T-005).
+- Result: stage 1 (5 platforms) built from data, merged per colour (3 meshes); `validateCourse` (10 unit tests)
+  also runs at startup in dev/test mode; `course()` adds `meshes`; baselines reviewed. Use `solidAabb`/
+  `allSolids` from `types.ts` for collision in T-005.
 
 ### T-005 Kinematic character controller (pure logic)
 
