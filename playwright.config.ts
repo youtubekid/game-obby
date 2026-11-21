@@ -20,7 +20,14 @@ export default defineConfig({
     : [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.02 },
+    // Tight on purpose: repeated runs on one machine render identical pixels, and a 1 m move of the
+    // player box changes thousands of pixels. `threshold` (per-pixel YIQ distance, 0–1) absorbs tiny
+    // colour noise; `maxDiffPixels` allows a few stray edge pixels. See docs/qa/test-plan.md.
+    toHaveScreenshot: {
+      threshold: 0.1,
+      maxDiffPixels: 50,
+      stylePath: 'tests/e2e/screenshot.css',
+    },
   },
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{testFilePath}/{arg}{ext}',
   use: {

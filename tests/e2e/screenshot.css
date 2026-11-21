@@ -1,0 +1,5 @@
+/* Applied to every toHaveScreenshot (playwright.config.ts). Hides overlays whose content changes per
+   build, so they don't shift pixels; the canvas underneath stays in the comparison. */
+#build-info {
+  visibility: hidden !important;
+}

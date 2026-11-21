@@ -116,16 +116,20 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-019 Visual baselines should catch small scene changes
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: tech
 - Goal: replacing the floating marker cube with the player box (T-006) still passed the visual test, because
   `maxDiffPixelRatio: 0.02` hides changes that cover under 2 % of the canvas; stale baselines go unnoticed.
 - Acceptance criteria:
-  - [ ] Tighter tolerance (e.g. `maxDiffPixels` with a per-pixel `threshold`) that still passes repeated runs on
+  - [x] Tighter tolerance (e.g. `maxDiffPixels` with a per-pixel `threshold`) that still passes repeated runs on
         WebGPU and WebGL2 on the same machine, but fails when a 1 m object moves or changes shape.
-  - [ ] `docs/qa/test-plan.md` explains the tolerance and that intended changes need `--update-snapshots=all`.
+  - [x] `docs/qa/test-plan.md` explains the tolerance and that intended changes need `--update-snapshots=all`.
 - Verification: run the visual test 3× unchanged (passes); move the player spawn by 1 m (fails).
+- Result: `threshold: 0.1` + `maxDiffPixels: 50`. The only run-to-run noise (15 px) was the `#build-info` mask
+  box shifting with the commit hash width; `tests/e2e/screenshot.css` now hides the label instead. 3× repeat
+  passes on both renderers; spawn moved 1 m fails both with 6 089 px. `test:e2e:update` now rewrites all
+  `@visual` baselines. Baselines regenerated and reviewed (mask box gone).
 
 ### T-007 Third-person follow camera with orbit and zoom
 

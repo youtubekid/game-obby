@@ -25,6 +25,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   budget enforced on every build), T-003 done (fixed-step sky test scene; initial JS 360/450 kB),
   T-004 done (course as data + builder), T-005 done (pure kinematic controller, 21 unit tests),
   T-006 done (box player + keyboard input; input injection and `advance(n)` in the debug API).
-  Follow-up T-019 added (visual tolerance too loose). **Next step: `/next` → T-007 (follow camera).**
+  T-019 done (visual tolerance now catches a 1 m move; build label hidden rather than masked).
+  **Next step: `/next` → T-007 (follow camera).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

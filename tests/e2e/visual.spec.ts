@@ -17,9 +17,7 @@ test.describe('visual @visual', () => {
       `No ${process.platform} baseline committed yet; run npm run test:e2e:update on that platform`,
     );
     await openGame(page, renderer);
-    await expect(page.locator('#game-canvas')).toHaveScreenshot(name, {
-      // Build info (version/commit) changes every build.
-      mask: [page.locator('#build-info')],
-    });
+    // Build info (version/commit) changes every build; tests/e2e/screenshot.css hides it.
+    await expect(page.locator('#game-canvas')).toHaveScreenshot(name);
   });
 });

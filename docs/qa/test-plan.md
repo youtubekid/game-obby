@@ -23,9 +23,19 @@ E2E runs two projects: **webgpu** (skipped when no adapter, e.g. GPU-less CI run
 ## Visual baselines
 
 Stored in `tests/e2e/__screenshots__/<project>/` and named per OS (`scene-win32.png`, `scene-linux.png`)
-because GPU and driver output differs. Update with `npm run test:e2e:update` (only rewrites images over the tolerance) or
-`npm run agent:visual` (rewrites all and reports the pixel diff of each against `HEAD`), and always review the
-images.
+because GPU and driver output differs.
+
+**Tolerance** (`expect.toHaveScreenshot` in `playwright.config.ts`): `threshold: 0.1` (per-pixel colour distance
+in YIQ space, 0–1, below which a pixel counts as equal) and `maxDiffPixels: 50` (pixels allowed to differ beyond
+that). Repeated runs on one machine render identical pixels on WebGPU and WebGL2, while moving the 1 m player box
+by 1 m changes ~6 000 pixels (T-019), so any visible scene change fails. `tests/e2e/screenshot.css` hides
+`#build-info` (its text changes per build) instead of masking it, because a mask box follows the text width.
+
+**Intended visual changes** must rewrite every baseline, not just the ones Playwright flags:
+`npm run test:e2e:update` (`--update-snapshots=all` on the `@visual` tests) or `npm run agent:visual` (same, plus
+the pixel diff of each image against `HEAD`). Plain `--update-snapshots` only rewrites images over the tolerance,
+leaving stale baselines behind. Always review the images, and restore those with no visible change
+(`git checkout -- <path>`); they are only re-encoded.
 
 ## Budgets
 
