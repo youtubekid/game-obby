@@ -156,16 +156,19 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-020 Shadow acne on platform tops
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: bug, art
 - Goal: the closer follow camera (T-007) shows faint banding (shadow acne) on the start island top near the player;
   surfaces should be evenly lit.
 - Acceptance criteria:
-  - [ ] Shadow bias / normal bias tuned (or shadow frustum fitted to the course) so platform tops show no banding
+  - [x] Shadow bias / normal bias tuned (or shadow frustum fitted to the course) so platform tops show no banding
         on WebGPU and WebGL2, while the player still casts a visible contact shadow.
 - Verification: visual baselines regenerated and reviewed at full size.
 - Notes: `Game.ts` shadow generator setup; keep the map ≤ 1024 (ADR 0006).
+- Result: `bias 0.001`, `normalBias 0.02`. Lit island-top patches went from 39 distinct colours to 1 on both
+  renderers; tops are evenly brighter (the acne darkened them overall). Player contact shadow intact.
+  Baselines regenerated and reviewed. Tops now saturate green at 255: lighting balance belongs to T-001.
 
 ### T-008 Touch controls: joystick, jump button, drag to orbit, pinch to zoom
 

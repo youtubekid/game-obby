@@ -96,6 +96,10 @@ export class Game {
     // Small shadow map on purpose: mobile is a first-class target (ADR 0006).
     const shadows = new ShadowGenerator(1024, sun);
     shadows.usePercentageCloserFiltering = true;
+    // Platforms cast and receive, so they shadow themselves: without bias, lit tops show banding
+    // (shadow acne, T-020). Normal bias handles the slanted sun; depth bias the rest.
+    shadows.bias = 0.001;
+    shadows.normalBias = 0.02;
 
     // Catch authoring mistakes early in dev and tests; production trusts the unit-tested data.
     if (import.meta.env.DEV || options.test) {
