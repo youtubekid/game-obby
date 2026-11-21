@@ -33,13 +33,45 @@ test.describe('player', () => {
     expect(moved.position.x).toBeGreaterThan(start.position.x + 1);
     expect(moved.position.z).toBeCloseTo(start.position.z, 5);
     expect(moved.grounded).toBe(true);
-    // The mesh mirrors the controller (test mode renders the latest step, alpha 1); box is centred.
+    // The figure mirrors the controller (test mode renders the latest step, alpha 1); playerMesh()
+    // reports feet + half the 1.8 m collision height.
     const mesh = await page.evaluate(() => window.__GAME__?.playerMesh());
     expect(mesh?.x).toBeCloseTo(moved.position.x, 5);
     expect(mesh?.y).toBeCloseTo(moved.position.y + 0.9, 5);
     expect(mesh?.z).toBeCloseTo(moved.position.z, 5);
     const actions = await page.evaluate(() => window.__GAME__?.input.actions());
     expect(actions?.move).toEqual({ x: 1, y: 0 });
+  });
+
+  test('the blocky figure stands still, runs facing its direction and raises its arms to jump', async ({
+    page,
+  }) => {
+    const avatar = () =>
+      page.evaluate(() => {
+        const state = window.__GAME__?.avatar();
+        if (!state) throw new Error('Debug API missing');
+        return state;
+      });
+    const idle = await avatar();
+    // Head, torso, two arms, two legs and two eyes.
+    expect(idle.meshes).toBe(8);
+    // The blend to rest is exponential, so compare closely rather than exactly.
+    for (const angle of Object.values(idle.pose)) expect(angle).toBeCloseTo(0, 3);
+
+    await page.evaluate(() => window.__GAME__?.input.set({ move: { x: 1, y: 0 } }));
+    let peakLeg = 0;
+    for (let i = 0; i < 4; i++) {
+      await advanceSteps(page, 5);
+      peakLeg = Math.max(peakLeg, Math.abs((await avatar()).pose.leftLeg));
+    }
+    expect(peakLeg).toBeGreaterThan(0.2);
+    expect((await avatar()).facing).toBeCloseTo(Math.PI / 2, 2);
+
+    await page.evaluate(() => window.__GAME__?.input.set({ move: { x: 0, y: 0 }, jump: true }));
+    await advanceSteps(page, 8);
+    const jumping = await avatar();
+    expect(jumping.pose.leftArm).toBeGreaterThan(1.5);
+    expect(jumping.pose.rightArm).toBeGreaterThan(1.5);
   });
 
   test('injected jump rises, then lands back on the ground', async ({ page }) => {

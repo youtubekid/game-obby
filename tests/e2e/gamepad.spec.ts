@@ -30,10 +30,12 @@ test('a gamepad with the left stick up and A held runs forward and jumps', async
   await expect
     .poll(() => page.evaluate(() => window.__GAME__?.input.actions()))
     .toMatchObject({ move: { x: 0, y: 1 }, jump: true });
-  await expect
-    .poll(() => page.evaluate(() => window.__GAME__?.player().position.z ?? 0))
-    .toBeGreaterThan(0.5);
+  // Real-time mode: A is held from the first step, so the jump comes first (one jump per press);
+  // check it before the player runs off the 6 m start island, after which only z keeps growing.
   await expect
     .poll(() => page.evaluate(() => window.__GAME__?.player().position.y ?? 0))
     .toBeGreaterThan(0.2);
+  await expect
+    .poll(() => page.evaluate(() => window.__GAME__?.player().position.z ?? 0))
+    .toBeGreaterThan(0.5);
 });

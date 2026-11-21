@@ -6,11 +6,8 @@ import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
-import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
 import { InputRouter, type InputActions, type PartialActions } from '../input/actions';
@@ -39,6 +36,13 @@ import {
   step as stepPlayer,
   type PlayerState,
 } from './player/controller';
+import {
+  createAnimationState,
+  stepAnimation,
+  type AnimationState,
+  type Pose,
+} from './player/animation';
+import { createAvatar, type Avatar } from './player/avatar';
 import { FixedStepper } from './sim/fixedStep';
 import { lerpVec3 } from './sim/interpolate';
 
@@ -58,7 +62,8 @@ export class Game {
   readonly input = new InputRouter();
   private readonly builtCourse: BuiltCourse;
   private readonly solids: readonly Aabb[];
-  private readonly playerMesh: Mesh;
+  private readonly avatar: Avatar;
+  private animation: AnimationState;
   private readonly camera: TargetCamera;
   /** Touch overlay; absent in test mode unless `?touch=1`. */
   private readonly touch: TouchControls | null = null;
@@ -119,14 +124,8 @@ export class Game {
     const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
     this.player = createPlayerState(spawn);
     this.previousPlayer = this.player;
-    const { halfWidth, height } = PLAYER_TUNING;
-    this.playerMesh = CreateBox(
-      'player',
-      { width: halfWidth * 2, height, depth: halfWidth * 2 },
-      this.scene,
-    );
-    this.playerMesh.material = flat('playerMat', this.scene, new Color3(1, 0.62, 0.15));
-    shadows.addShadowCaster(this.playerMesh);
+    this.avatar = createAvatar(this.scene, shadows);
+    this.animation = createAnimationState();
 
     this.cameraState = createCameraState(spawn);
     this.previousCamera = this.cameraState;
@@ -257,13 +256,15 @@ export class Game {
       deltaMs,
     );
     this.cameraState = followTarget(this.cameraState, this.player.position, deltaMs);
+    this.animation = stepAnimation(this.animation, this.player, deltaMs);
   }
 
-  /** Places player mesh and camera between the previous and current step (alpha 0..1). */
+  /** Places the avatar and camera between the previous and current step (alpha 0..1). */
   private syncView(alpha: number): void {
     const p = lerpVec3(this.previousPlayer.position, this.player.position, alpha);
-    // The box is centred on its position.
-    this.playerMesh.position.set(p.x, p.y + PLAYER_TUNING.height / 2, p.z);
+    // Pose and facing change smoothly per step already; only the position is interpolated.
+    this.avatar.place(p, this.animation.facing);
+    this.avatar.applyPose(this.animation.pose);
 
     const view = lerpCameraState(this.previousCamera, this.cameraState, alpha);
     const { eye, distance } = resolveCameraEye(view, this.solids);
@@ -275,10 +276,19 @@ export class Game {
     this.camera.setTarget(this.renderedTarget);
   }
 
-  /** Rendered centre of the player mesh, for tests. */
+  /** Rendered centre of the player figure (feet + half the collision height), for tests. */
   get playerMeshPosition(): Vec3 {
-    const { x, y, z } = this.playerMesh.position;
-    return { x, y, z };
+    const { x, y, z } = this.avatar.root.position;
+    return { x, y: y + PLAYER_TUNING.height / 2, z };
+  }
+
+  /** Avatar animation after the latest step, for tests. */
+  get avatarInfo(): { facing: number; pose: Pose; meshes: number } {
+    return {
+      facing: this.animation.facing,
+      pose: this.animation.pose,
+      meshes: this.avatar.meshes.length,
+    };
   }
 
   start(): void {
@@ -290,16 +300,8 @@ export class Game {
   dispose(): void {
     this.engine.stopRenderLoop();
     this.input.dispose();
+    this.avatar.dispose();
     this.builtCourse.dispose();
     this.scene.dispose();
   }
-}
-
-/** Matte, non-metallic material for the flat low-poly look. */
-function flat(name: string, scene: Scene, color: Color3): StandardMaterial {
-  const material = new StandardMaterial(name, scene);
-  material.diffuseColor = color;
-  material.ambientColor = color;
-  material.specularColor = Color3.Black();
-  return material;
 }

@@ -38,6 +38,15 @@ export interface GameDebugApi {
     fov: number;
     horizontalFov: number;
   };
+  /**
+   * Player figure after the latest step: `facing` yaw (0 = +z, positive towards +x), limb angles in
+   * radians (positive swings forward; all 0 when standing still) and the number of meshes.
+   */
+  avatar(): {
+    facing: number;
+    pose: { leftArm: number; rightArm: number; leftLeg: number; rightLeg: number };
+    meshes: number;
+  };
   /** Touch overlay state: shown after the first touch, or from the start with `?touch=1`. */
   touch(): { visible: boolean };
   /** Test mode only: lets the frozen simulation run `steps` more steps; returns the new freeze step. */
@@ -88,6 +97,11 @@ export function installDebugApi(version: string): GameDebugApi {
       fov: 0,
       horizontalFov: 0,
     }),
+    avatar: () => ({
+      facing: 0,
+      pose: { leftArm: 0, rightArm: 0, leftLeg: 0, rightLeg: 0 },
+      meshes: 0,
+    }),
     touch: () => ({ visible: false }),
     advance: () => 0,
     input: { set: () => undefined, clear: () => undefined, actions: () => NO_ACTIONS },
@@ -107,6 +121,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.playerMesh = () => game.playerMeshPosition;
   api.camera = () => game.cameraInfo;
   api.touch = () => ({ visible: game.touchControlsVisible });
+  api.avatar = () => game.avatarInfo;
   api.advance = (steps) => game.advance(steps);
   api.input = {
     set: (actions) => {

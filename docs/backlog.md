@@ -234,19 +234,28 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-010 Blocky character with procedural animation
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: art, feature
 - Goal: the player is an original blocky figure (head, torso, two arms, two legs) that swings its limbs when
   running and strikes a pose when jumping/falling.
 - Acceptance criteria:
-  - [ ] `src/game/player/avatar.ts` builds the figure from boxes (pivots at shoulders/hips), faces the movement
+  - [x] `src/game/player/avatar.ts` builds the figure from boxes (pivots at shoulders/hips), faces the movement
         direction, disposes cleanly.
-  - [ ] Pure `src/game/player/animation.ts`: limb angles from (speed, grounded, vertical velocity, time).
-  - [ ] Collision shape unchanged (T-005); the figure only mirrors it.
+  - [x] Pure `src/game/player/animation.ts`: limb angles from (speed, grounded, vertical velocity, time).
+  - [x] Collision shape unchanged (T-005); the figure only mirrors it.
 - Verification: unit tests for animation (idle = zero swing, swing amplitude grows with speed); visual baseline
   of the idle character; manual check of the run cycle.
 - Notes: no third-party likeness or branding (GDD).
+- Result: 8 boxes (6 cast shadows; eyes show the facing), 1.8 m tall like the collision box. Original palette
+  (red shirt, navy trousers, warm skin), deliberately not the yellow/blue/green of a well-known platform's
+  default avatar; deeper than ideal because the current lighting washes colours out (T-001). "Time" is a
+  run phase advanced per metre travelled, so stride matches speed; jump/fall poses, exponential blending and
+  rate-limited facing; stepped with the fixed step (deterministic). Debug API `avatar()`. 11 animation +
+  3 avatar unit tests (NullEngine: height, facing, disposal of meshes/materials/nodes/shadow casters),
+  1 e2e. Run cycle checked by eye on side-view stills (idle, two mid-stride frames, jump), not as live
+  motion: worth a look in the T-017 playtest. Also fixed a race in the T-009 gamepad e2e (it checked the
+  jump after the player could have run off the island).
 
 ### T-011 Checkpoints, falling into the void and respawn
 
