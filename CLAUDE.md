@@ -22,6 +22,9 @@ site to **Cloudflare** (assets only, `wrangler.toml`), servable from any subfold
 
 Never run `npm run deploy` or push; deployment happens through CI on `main` and is the user's call.
 
+Use the Read/Glob/Grep/Edit tools for files. Shell calls only for `npm`, `npx` and `git` (already allowlisted);
+cmdlets like `Get-ChildItem`, `Get-Content` or `Set-Content` trigger permission prompts.
+
 ## Development loop
 
 Planning lives in the repo: `docs/game-design.md` (what) → `docs/roadmap.md` (milestones) →
