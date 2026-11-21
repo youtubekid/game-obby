@@ -47,8 +47,16 @@ export interface GameDebugApi {
     pose: { leftArm: number; rightArm: number; leftLeg: number; rightLeg: number };
     meshes: number;
   };
-  /** Run progress: last checkpoint reached (-1 = none, else index in course order) and deaths. */
-  run(): { checkpoint: number; deaths: number };
+  /**
+   * Run progress: last checkpoint reached (-1 = none, else index in course order), deaths and
+   * what caused the last one (`null` before the first).
+   */
+  run(): { checkpoint: number; deaths: number; lastDeath: 'fall' | 'hazard' | 'spinner' | null };
+  /**
+   * Moving obstacles after the latest step: each spinner's angle (rad, from simulation time) and
+   * its mesh's rendered `rotation.y` (equal in test mode, where frames render the latest step).
+   */
+  obstacles(): { spinners: { id: string; angle: number; meshAngle: number }[] };
   debug: {
     /** Test mode only: moves the player's feet to (x, y, z), at rest; the camera follows at once. */
     teleport(x: number, y: number, z: number): void;
@@ -108,7 +116,8 @@ export function installDebugApi(version: string): GameDebugApi {
       pose: { leftArm: 0, rightArm: 0, leftLeg: 0, rightLeg: 0 },
       meshes: 0,
     }),
-    run: () => ({ checkpoint: -1, deaths: 0 }),
+    run: () => ({ checkpoint: -1, deaths: 0, lastDeath: null }),
+    obstacles: () => ({ spinners: [] }),
     debug: { teleport: () => undefined },
     touch: () => ({ visible: false }),
     advance: () => 0,
@@ -131,6 +140,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.touch = () => ({ visible: game.touchControlsVisible });
   api.avatar = () => game.avatarInfo;
   api.run = () => game.runInfo;
+  api.obstacles = () => game.obstacleInfo;
   api.debug = {
     teleport: (x, y, z) => {
       game.teleport({ x, y, z });

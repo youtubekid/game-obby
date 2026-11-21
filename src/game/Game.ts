@@ -30,11 +30,13 @@ import { buildCourse, type BuiltCourse } from './course/buildCourse';
 import { course1 } from './course/course1';
 import {
   allSolids,
+  allSpinners,
   checkpoints,
   solidAabb,
   topCentre,
   type Aabb,
   type Course,
+  type Spinner,
   type Vec3,
 } from './course/types';
 import { validateCourse } from './course/validateCourse';
@@ -57,8 +59,17 @@ import {
   reachCheckpoint,
   recordDeath,
   standingOn,
+  type DeathCause,
   type RunState,
 } from './run/runState';
+import { buildObstacles, type BuiltObstacles } from './obstacles/buildObstacles';
+import {
+  HAZARD_MARGIN,
+  playerBox,
+  spinnerAngle,
+  spinnerHits,
+  touchesBox,
+} from './obstacles/motion';
 import { FixedStepper } from './sim/fixedStep';
 import { lerpVec3 } from './sim/interpolate';
 
@@ -85,6 +96,10 @@ export class Game {
   private readonly touch: TouchControls | null = null;
   private player: PlayerState;
   private run: RunState;
+  private readonly builtObstacles: BuiltObstacles;
+  private readonly spinners: readonly Spinner[];
+  /** Kill floors: they collide like ground (they are in `solids`) and kill on touch. */
+  private readonly hazardBoxes: readonly Aabb[];
   /** Checkpoint pads (in checkpoint order) and the respawn point on each. */
   private readonly checkpointBoxes: readonly Aabb[];
   private readonly checkpointRespawns: readonly Vec3[];
@@ -138,6 +153,11 @@ export class Game {
       if (errors.length > 0) throw new Error(`Invalid course: ${errors.join('; ')}`);
     }
     this.builtCourse = buildCourse(this.scene, this.course, shadows);
+    this.builtObstacles = buildObstacles(this.scene, this.course, shadows);
+    this.spinners = allSpinners(this.course);
+    this.hazardBoxes = allSolids(this.course)
+      .filter((solid) => solid.kind === 'hazard')
+      .map(solidAabb);
     // Collision comes from the same data as the meshes.
     this.solids = allSolids(this.course).map(solidAabb);
 
@@ -284,16 +304,45 @@ export class Game {
     this.animation = stepAnimation(this.animation, this.player, deltaMs);
   }
 
-  /** Saves checkpoints the player stands on and respawns after a fall into the void. */
+  /** Saves checkpoints the player stands on; respawns after a fall, a kill floor or a spinner. */
   private updateRun(): void {
     const { position, grounded } = this.player;
     const pad = standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.checkpointBoxes);
     const respawn = this.checkpointRespawns[pad];
     if (respawn) this.run = reachCheckpoint(this.run, pad, respawn);
-    if (hasFallen(position, this.course.killY)) {
-      this.run = recordDeath(this.run);
+    const cause = this.deathCause(position);
+    if (cause) {
+      this.run = recordDeath(this.run, cause);
       this.placePlayer(this.run.respawn);
     }
+  }
+
+  /** What, if anything, kills the player standing at `feet` at the current simulation time. */
+  private deathCause(feet: Vec3): DeathCause | null {
+    if (hasFallen(feet, this.course.killY)) return 'fall';
+    const body = playerBox(feet, PLAYER_TUNING.halfWidth, PLAYER_TUNING.height);
+    if (this.hazardBoxes.some((box) => touchesBox(body, box, HAZARD_MARGIN))) return 'hazard';
+    const time = this.simTimeMs;
+    if (this.spinners.some((s) => spinnerHits(s, spinnerAngle(s, time), body))) return 'spinner';
+    return null;
+  }
+
+  /** Simulation time after the latest step (ms); drives every moving obstacle. */
+  private get simTimeMs(): number {
+    return this.steps * FIXED_STEP_MS;
+  }
+
+  /** Spinner angles after the latest step (sim) and as last rendered (mesh), for tests. */
+  get obstacleInfo(): { spinners: { id: string; angle: number; meshAngle: number }[] } {
+    const time = this.simTimeMs;
+    const rendered = this.builtObstacles.meshAngles();
+    return {
+      spinners: this.spinners.map((s) => ({
+        id: s.id,
+        angle: spinnerAngle(s, time),
+        meshAngle: rendered[s.id] ?? Number.NaN,
+      })),
+    };
   }
 
   /**
@@ -313,13 +362,19 @@ export class Game {
     if (this.options.test && Number.isFinite(feet.x + feet.y + feet.z)) this.placePlayer(feet);
   }
 
-  /** Run progress: last checkpoint (-1 = none) and deaths. */
-  get runInfo(): { checkpoint: number; deaths: number } {
-    return { checkpoint: this.run.checkpoint, deaths: this.run.deaths };
+  /** Run progress: last checkpoint (-1 = none), deaths and the cause of the last one. */
+  get runInfo(): { checkpoint: number; deaths: number; lastDeath: DeathCause | null } {
+    return {
+      checkpoint: this.run.checkpoint,
+      deaths: this.run.deaths,
+      lastDeath: this.run.lastDeath,
+    };
   }
 
-  /** Places the avatar and camera between the previous and current step (alpha 0..1). */
+  /** Places the avatar, obstacles and camera between the previous and current step (alpha 0..1). */
   private syncView(alpha: number): void {
+    // Obstacles render at the same in-between time as the player.
+    this.builtObstacles.update(Math.max(0, this.steps - 1 + alpha) * FIXED_STEP_MS);
     const p = lerpVec3(this.previousPlayer.position, this.player.position, alpha);
     // Pose and facing change smoothly per step already; only the position is interpolated.
     this.avatar.place(p, this.animation.facing);
@@ -360,6 +415,7 @@ export class Game {
     this.engine.stopRenderLoop();
     this.input.dispose();
     this.avatar.dispose();
+    this.builtObstacles.dispose();
     this.builtCourse.dispose();
     this.scene.dispose();
   }

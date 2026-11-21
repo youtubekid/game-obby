@@ -12,7 +12,12 @@ const start = vec3(0, 0, 0);
 
 describe('runState', () => {
   it('starts at the course start with no checkpoint and no deaths', () => {
-    expect(createRunState(start)).toEqual({ checkpoint: -1, deaths: 0, respawn: start });
+    expect(createRunState(start)).toEqual({
+      checkpoint: -1,
+      deaths: 0,
+      lastDeath: null,
+      respawn: start,
+    });
   });
 
   it('saves a checkpoint and respawns there', () => {
@@ -37,10 +42,11 @@ describe('runState', () => {
     expect(reachCheckpoint(state, 0.5, vec3(1, 1, 1))).toBe(state);
   });
 
-  it('counts deaths and keeps the respawn point', () => {
+  it('counts deaths with their cause and keeps the respawn point', () => {
     const saved = reachCheckpoint(createRunState(start), 0, vec3(0, 0.5, 19));
-    const dead = recordDeath(recordDeath(saved));
+    const dead = recordDeath(recordDeath(saved, 'fall'), 'spinner');
     expect(dead.deaths).toBe(2);
+    expect(dead.lastDeath).toBe('spinner');
     expect(dead.checkpoint).toBe(0);
     expect(dead.respawn).toEqual(vec3(0, 0.5, 19));
   });

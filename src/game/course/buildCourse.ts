@@ -4,15 +4,8 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { allSolids, type Course, type Solid, type SolidKind } from './types';
-
-/** Default colour per solid kind (bright low-poly palette, see docs/game-design.md). */
-const KIND_COLORS: Record<SolidKind, string> = {
-  platform: '#5cc85c',
-  // GDD: checkpoints are green. A deep, saturated emerald renders as vivid green under the current
-  // bright lighting and stands out from the pale grassy platforms (lighter values wash to cyan).
-  checkpoint: '#0f9d58',
-};
+import { solidColor } from './palette';
+import { allSolids, type Course, type Solid } from './types';
 
 export interface BuiltCourse {
   readonly meshes: readonly Mesh[];
@@ -26,7 +19,7 @@ export interface BuiltCourse {
 export function buildCourse(scene: Scene, course: Course, shadows?: ShadowGenerator): BuiltCourse {
   const byColor = new Map<string, Solid[]>();
   for (const solid of allSolids(course)) {
-    const color = (solid.color ?? KIND_COLORS[solid.kind]).toLowerCase();
+    const color = solidColor(solid);
     const group = byColor.get(color);
     if (group) group.push(solid);
     else byColor.set(color, [solid]);

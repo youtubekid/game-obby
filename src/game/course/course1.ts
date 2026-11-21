@@ -2,7 +2,8 @@ import { vec3, type Course } from './types';
 
 /**
  * The first course. Stub for now: stage 1 is a start island and a row of stepping platforms
- * heading +z. The full five-stage layout comes in T-017.
+ * heading +z; stage 2 introduces hazards (a lava pool crossed by a stepping stone, then a low
+ * spinning bar to jump over). The full five-stage layout comes in T-017.
  * Units: 1 = one metre; platform tops sit on whole or half metres to keep jumps readable.
  */
 export const course1: Course = {
@@ -36,6 +37,37 @@ export const course1: Course = {
         },
         // The stage's landing island is its checkpoint.
         { id: 's1-end', kind: 'checkpoint', center: vec3(0, 0.5, 19), size: vec3(6, 1, 6) },
+      ],
+    },
+    {
+      name: 'Stage 2: Hot floor',
+      spawn: vec3(0, 1, 23.5),
+      solids: [
+        // Ledge in front of the lava, joined to stage 1's checkpoint island.
+        { id: 's2-start', kind: 'platform', center: vec3(0, 0.5, 23.5), size: vec3(6, 1, 3) },
+        // Lava pool, flush with the ledge: walking on is death. 6 m is too far to jump in one go.
+        { id: 's2-lava', kind: 'hazard', center: vec3(0, 0.5, 28), size: vec3(6, 1, 6) },
+        // Stepping stone standing in the lava, 1 m higher than the ledge.
+        {
+          id: 's2-stone',
+          kind: 'platform',
+          center: vec3(0, 1.5, 28),
+          size: vec3(2, 1, 2),
+          color: '#a8a29e',
+        },
+        { id: 's2-bridge', kind: 'platform', center: vec3(0, 0.5, 35), size: vec3(6, 1, 8) },
+        { id: 's2-end', kind: 'checkpoint', center: vec3(0, 1, 44), size: vec3(6, 1, 6) },
+      ],
+      spinners: [
+        {
+          // Ankle-high sweeper across the whole bridge: jump over it.
+          id: 's2-sweeper',
+          kind: 'spinner',
+          pivot: vec3(0, 1.35, 35),
+          armLength: 2.6,
+          thickness: 0.35,
+          angularSpeed: 1.6,
+        },
       ],
     },
   ],

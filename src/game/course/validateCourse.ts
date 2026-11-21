@@ -1,15 +1,21 @@
+import { HAZARD_MARGIN, playerBox, spinnerTipTravel, touchesBox } from '../obstacles/motion';
 import { PLAYER_TUNING } from '../player/controller';
 import {
   aabbOverlap,
   allSolids,
+  allSpinners,
   checkpoints,
   solidAabb,
   topCentre,
-  vec3,
+  type Aabb,
   type Course,
   type Solid,
+  type Spinner,
   type Vec3,
 } from './types';
+
+/** Simulation step the course is validated for (the game's fixed 60 Hz step). */
+const STEP_MS = 1000 / 60;
 
 /** How far above a top surface a spawn point may float and still count as standing on it. */
 const SPAWN_TOLERANCE = 0.05;
@@ -78,17 +84,85 @@ export function validateCourse(course: Course): string[] {
     }
   }
 
+  const spinners = allSpinners(course);
+  // Where the player starts or respawns must be safe, or a respawn could kill them again at once.
+  const safeSpots = [
+    ...course.stages.map((stage) => ({
+      name: `Stage "${stage.name}" spawn point`,
+      feet: stage.spawn,
+    })),
+    ...checkpoints(course).map((cp) => ({
+      name: `Checkpoint "${cp.id}" respawn point`,
+      feet: topCentre(cp),
+    })),
+  ];
+  for (const solid of solids) {
+    if (solid.kind !== 'hazard') continue;
+    for (const spot of safeSpots) {
+      if (
+        isFiniteVec(spot.feet) &&
+        touchesBox(bodyAt(spot.feet), solidAabb(solid), HAZARD_MARGIN)
+      ) {
+        errors.push(`${spot.name} touches hazard "${solid.id}"`);
+      }
+    }
+  }
+  for (const spinner of spinners) {
+    if (ids.has(spinner.id)) errors.push(`Duplicate id "${spinner.id}"`);
+    ids.add(spinner.id);
+    const { armLength, thickness, angularSpeed } = spinner;
+    if (
+      !isFiniteVec(spinner.pivot) ||
+      !(armLength > 0) ||
+      !(thickness > 0) ||
+      !Number.isFinite(armLength) ||
+      !Number.isFinite(thickness) ||
+      !Number.isFinite(angularSpeed) ||
+      !Number.isFinite(spinner.phase ?? 0)
+    ) {
+      errors.push(
+        `Spinner "${spinner.id}" needs a finite pivot, positive arm and thickness, finite speed`,
+      );
+      continue;
+    }
+    if (spinner.color !== undefined && !/^#[0-9a-f]{6}$/i.test(spinner.color)) {
+      errors.push(`Spinner "${spinner.id}" has an invalid colour "${spinner.color}"`);
+    }
+    // Sanity limit on spin speed: the tip must not move a player's width in one step, or it could
+    // skip over a standing player. (Player speed is not considered; see spinnerTipTravel.)
+    if (spinnerTipTravel(spinner, STEP_MS) >= PLAYER_TUNING.halfWidth * 2) {
+      errors.push(
+        `Spinner "${spinner.id}" turns too fast: its tip moves more than a player width per step`,
+      );
+    }
+    for (const spot of safeSpots) {
+      if (isFiniteVec(spot.feet) && inSweep(spinner, spot.feet)) {
+        errors.push(`${spot.name} is inside the sweep of spinner "${spinner.id}"`);
+      }
+    }
+  }
+
   return errors;
+}
+
+/** The player's collision box when standing at `feet`. */
+function bodyAt(feet: Vec3): Aabb {
+  return playerBox(feet, PLAYER_TUNING.halfWidth, PLAYER_TUNING.height);
 }
 
 /** A solid overlapping the player's collision box when standing at `feet`, if any. */
 function blockerAt(feet: Vec3, solids: readonly Solid[]): Solid | undefined {
-  const { halfWidth: h, height } = PLAYER_TUNING;
-  const body = {
-    min: vec3(feet.x - h, feet.y, feet.z - h),
-    max: vec3(feet.x + h, feet.y + height, feet.z + h),
-  };
+  const body = bodyAt(feet);
   return solids.find((solid) => isFiniteVec(solid.center) && aabbOverlap(solidAabb(solid), body));
+}
+
+/** True when the spinner can hit a player standing at `feet` at some angle (its swept disc). */
+function inSweep(spinner: Spinner, feet: Vec3): boolean {
+  const body = bodyAt(feet);
+  const halfT = spinner.thickness / 2;
+  if (body.max.y <= spinner.pivot.y - halfT || body.min.y >= spinner.pivot.y + halfT) return false;
+  const reach = spinner.armLength + halfT + PLAYER_TUNING.halfWidth * Math.SQRT2;
+  return Math.hypot(feet.x - spinner.pivot.x, feet.z - spinner.pivot.z) < reach;
 }
 
 function isFiniteVec(v: Vec3): boolean {

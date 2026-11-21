@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { course1 } from '../../src/game/course/course1';
+import { courseColorCount } from '../../src/game/course/palette';
 import { hasWebGpuAdapter, openGame, pixelVariety, projectRenderer } from './helpers';
 
 test.describe('smoke', () => {
@@ -29,9 +31,8 @@ test.describe('smoke', () => {
     const course = await page.evaluate(() => window.__GAME__?.course());
     expect(course?.stages).toBeGreaterThanOrEqual(1);
     expect(course?.solids).toBeGreaterThan(1);
-    // Solids are merged per colour: course1 stage 1 uses three platform colours plus the
-    // checkpoint colour.
-    expect(course?.meshes).toBe(4);
+    // Solids are merged per colour: one static mesh per distinct colour in the course data.
+    expect(course?.meshes).toBe(courseColorCount(course1));
     await expect(page.locator('#build-info')).toContainText(renderer);
 
     const screenshot = await page.locator('#game-canvas').screenshot();

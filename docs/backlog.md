@@ -283,16 +283,27 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-012 Hazards: kill floors and spinning bars
 
-- Status: Ready
+- Status: Done (2026-11-22)
 - Milestone: M2
 - Labels: feature
 - Goal: red/orange lava floors and spinning bars send the player back to the checkpoint.
 - Acceptance criteria:
-  - [ ] Course kinds `hazard` (static AABB) and `spinner` (pivot, arm length, angular speed).
-  - [ ] Pure obstacle motion `src/game/obstacles/motion.ts` (angle from time) and overlap test player AABB vs
+  - [x] Course kinds `hazard` (static AABB) and `spinner` (pivot, arm length, angular speed).
+  - [x] Pure obstacle motion `src/game/obstacles/motion.ts` (angle from time) and overlap test player AABB vs
         rotating bar (OBB/segment), deterministic per step.
-  - [ ] Touching a hazard triggers the same respawn path as T-011.
+  - [x] Touching a hazard triggers the same respawn path as T-011.
 - Verification: unit tests for spinner angle and overlap; e2e: teleport onto lava → `deaths` increments.
+- Result: `hazard` solids collide like ground and kill on touch (0.02 m margin, since the player stands exactly on
+  the top face); spinners are a separate `Stage.spinners` list (centred bar about a vertical pivot, no
+  collision, kill on overlap via scalar SAT), angle = phase + ω × simulation time; meshes render at the
+  interpolated sim time. `run()` adds `lastDeath` (`fall`/`hazard`/`spinner`); new `obstacles()` (sim and
+  mesh angle). Validation: spinner parameters, tip travel per step < player width (a spin-speed sanity limit,
+  not a full tunnelling guarantee), spawn/respawn points not touching hazards or inside a sweep, ids unique
+  across solids and spinners. Kind colours moved to pure `course/palette.ts` (the smoke test now derives the
+  merged-mesh count from data). Course 1 stage 2: lava pool with a stepping stone, bridge with an ankle-high
+  sweeper (jump over), checkpoint `s2-end`. Unit tests (motion, validation, jump clears the sweeper) and 6
+  hazard e2e (lava, safe stone, pivot hit, along-vs-across hit at the live angle, mesh = sim angle, angle vs
+  time). Stage 2 screenshot and baselines reviewed. The bar floats without a hub post (art: M3).
 
 ### T-013 Moving and vanishing platforms
 

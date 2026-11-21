@@ -14,12 +14,14 @@ export interface Aabb {
 }
 
 /**
- * What a solid does. Later tasks extend the union (hazard, mover, ...).
+ * What a solid does. Later tasks extend the union (mover, ...).
  * - `platform`: plain ground.
  * - `checkpoint`: ground that saves progress when the player stands on it (a stage's landing island);
  *   the player respawns on top of its centre.
+ * - `hazard`: a kill floor or block (lava). It collides like ground, but touching it respawns the
+ *   player at the last checkpoint.
  */
-export type SolidKind = 'platform' | 'checkpoint';
+export type SolidKind = 'platform' | 'checkpoint' | 'hazard';
 
 /** A static box in the course, described by its centre and full size. */
 export interface Solid {
@@ -31,11 +33,33 @@ export interface Solid {
   readonly color?: string;
 }
 
+/**
+ * A bar spinning about the vertical axis through `pivot`, reaching `armLength` out on both sides.
+ * It does not collide; touching it respawns the player. Its angle depends only on simulation time
+ * (see `obstacles/motion.ts`), so runs are deterministic.
+ */
+export interface Spinner {
+  readonly id: string;
+  readonly kind: 'spinner';
+  /** Centre of the bar. */
+  readonly pivot: Vec3;
+  /** Distance from the pivot to each end of the bar (m). */
+  readonly armLength: number;
+  /** Height and depth of the bar's square cross-section (m). */
+  readonly thickness: number;
+  /** Turn rate (rad/s); positive turns from +x towards -z, like Babylon's `rotation.y`. */
+  readonly angularSpeed: number;
+  /** Angle at time 0 (rad). */
+  readonly phase?: number;
+  readonly color?: string;
+}
+
 export interface Stage {
   readonly name: string;
   /** Where the player (re)spawns for this stage: feet position, standing on a solid. */
   readonly spawn: Vec3;
   readonly solids: readonly Solid[];
+  readonly spinners?: readonly Spinner[];
 }
 
 export interface Course {
@@ -72,6 +96,11 @@ export function aabbOverlap(a: Aabb, b: Aabb): boolean {
 /** Every solid in the course, in stage order. */
 export function allSolids(course: Course): Solid[] {
   return course.stages.flatMap((stage) => stage.solids);
+}
+
+/** Every spinning bar in the course, in stage order. */
+export function allSpinners(course: Course): Spinner[] {
+  return course.stages.flatMap((stage) => stage.spinners ?? []);
 }
 
 /** Checkpoint solids in course order; their position in this list is the checkpoint number. */

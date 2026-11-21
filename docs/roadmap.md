@@ -30,6 +30,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   acne fixed with depth/normal bias), T-008 done (touch joystick, jump, orbit, pinch; `mobile` e2e project);
   T-021 done (portrait widens the vertical FOV), T-009 done (gamepad; real-controller check deferred to the
   T-017 playtest), T-010 done (blocky figure with run/jump/fall animation), T-011 done (checkpoint
-  islands, killY, respawn; debug `run()`/`teleport`). **Next step: `/next` → T-012 (hazards).**
+  islands, killY, respawn; debug `run()`/`teleport`), T-012 done (lava and spinning bars; course 1 has
+  a hazard stage 2). **Next step: `/next` → T-013 (moving and vanishing platforms).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

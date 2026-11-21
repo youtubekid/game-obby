@@ -8,6 +8,8 @@ import {
   vec3,
   type Course,
   type Solid,
+  type Spinner,
+  type Vec3,
 } from '../../src/game/course/types';
 import { validateCourse } from '../../src/game/course/validateCourse';
 
@@ -152,7 +154,53 @@ describe('checkpoints', () => {
     expect(validateCourse(courseWith([pad, aside], vec3(0, 0.5, 0)))).toEqual([]);
   });
 
-  it('course1 ends stage 1 on a checkpoint', () => {
-    expect(checkpoints(course1).map((s) => s.id)).toEqual(['s1-end']);
+  it('course1 ends every stage on a checkpoint', () => {
+    expect(checkpoints(course1).map((s) => s.id)).toEqual(['s1-end', 's2-end']);
+  });
+});
+
+describe('hazards and spinners', () => {
+  const floor = box('floor', 0, 0, 0, 8); // top at y 0.5
+  const spinner: Spinner = {
+    id: 'bar',
+    kind: 'spinner',
+    pivot: vec3(0, 0.85, 0),
+    armLength: 2,
+    thickness: 0.3,
+    angularSpeed: 1.5,
+  };
+
+  /** One-stage course with spinners. */
+  const withSpinners = (solids: Solid[], spawn: Vec3, spinners: Spinner[]): string[] =>
+    validateCourse({
+      name: 'test',
+      stages: [{ name: 'stage', spawn, solids, spinners }],
+      killY: -10,
+    });
+
+  it('accepts a spinner away from spawn and respawn points', () => {
+    expect(withSpinners([floor], vec3(3.5, 0.5, 3.5), [spinner])).toEqual([]);
+  });
+
+  it('rejects a spawn inside a spinner sweep or touching a hazard', () => {
+    const lava: Solid = { ...box('lava', 5, 0, 0, 2), kind: 'hazard' };
+    expect(withSpinners([floor, lava], vec3(1, 0.5, 0), [spinner])).toContain(
+      'Stage "stage" spawn point is inside the sweep of spinner "bar"',
+    );
+    const onLava = validateCourse(courseWith([floor, lava], vec3(3.8, 0.5, 0)));
+    expect(onLava).toContain('Stage "stage" spawn point touches hazard "lava"');
+  });
+
+  it('rejects broken or too fast spinners and duplicate ids', () => {
+    const spawn = vec3(3.5, 0.5, 3.5);
+    const check = (bar: Spinner) => withSpinners([floor], spawn, [bar]);
+    expect(check({ ...spinner, armLength: 0 }).some((e) => e.includes('needs a finite'))).toBe(
+      true,
+    );
+    // 2 m arm at 30 rad/s moves the tip 1 m per step: more than the player's 0.7 m width.
+    expect(check({ ...spinner, angularSpeed: 30 })).toContain(
+      'Spinner "bar" turns too fast: its tip moves more than a player width per step',
+    );
+    expect(check({ ...spinner, id: 'floor' })).toContain('Duplicate id "floor"');
   });
 });

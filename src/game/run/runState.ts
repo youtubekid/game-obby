@@ -3,16 +3,20 @@
 
 import type { Aabb, Vec3 } from '../course/types';
 
+/** Why the player last died: fell into the void, touched a kill floor, or was hit by a spinner. */
+export type DeathCause = 'fall' | 'hazard' | 'spinner';
+
 export interface RunState {
   /** Index into the course's checkpoint list (`checkpoints(course)`); -1 = none yet (course start). */
   readonly checkpoint: number;
   readonly deaths: number;
+  readonly lastDeath: DeathCause | null;
   /** Feet position to respawn at: the last checkpoint's top centre, or the course start. */
   readonly respawn: Vec3;
 }
 
 export function createRunState(start: Vec3): RunState {
-  return { checkpoint: -1, deaths: 0, respawn: start };
+  return { checkpoint: -1, deaths: 0, lastDeath: null, respawn: start };
 }
 
 /** Saves a checkpoint. Progress only moves forward: an earlier (or the same) checkpoint is ignored. */
@@ -21,9 +25,9 @@ export function reachCheckpoint(state: RunState, index: number, respawn: Vec3): 
   return { ...state, checkpoint: index, respawn };
 }
 
-/** Counts a death (fall or hazard); the caller moves the player to `respawn`. */
-export function recordDeath(state: RunState): RunState {
-  return { ...state, deaths: state.deaths + 1 };
+/** Counts a death; the caller moves the player to `respawn`. */
+export function recordDeath(state: RunState, cause: DeathCause): RunState {
+  return { ...state, deaths: state.deaths + 1, lastDeath: cause };
 }
 
 /** True once the player's feet are below the course's kill height. */
