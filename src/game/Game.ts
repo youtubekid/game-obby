@@ -14,6 +14,7 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
 import { InputRouter, type InputActions, type PartialActions } from '../input/actions';
+import { GamepadSource } from '../input/gamepad';
 import { KeyboardSource } from '../input/keyboard';
 import { MouseCameraSource } from '../input/pointer';
 import { TouchControls } from '../input/touch';
@@ -138,6 +139,8 @@ export class Game {
     if (!options.test) {
       this.input.add(new KeyboardSource(window));
       if (canvas) this.input.add(new MouseCameraSource(canvas));
+      // Sources are read once per fixed step, so the gamepad's orbit rate uses the step length.
+      if ('getGamepads' in navigator) this.input.add(new GamepadSource(navigator, FIXED_STEP_MS));
     }
     if (canvas && (!options.test || options.touch)) {
       this.touch = new TouchControls(canvas, { forceVisible: options.touch });

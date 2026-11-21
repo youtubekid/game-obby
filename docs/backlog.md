@@ -216,15 +216,21 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-009 Gamepad input source
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: a standard gamepad plays the game: left stick move, right stick camera, A/Cross jump.
 - Acceptance criteria:
-  - [ ] `src/input/gamepad.ts`: pure `mapGamepad(snapshot)` → actions (dead zone, standard mapping), polled each
+  - [x] `src/input/gamepad.ts`: pure `mapGamepad(snapshot)` → actions (dead zone, standard mapping), polled each
         step via the Gamepad API; connect/disconnect handled.
 - Verification: unit tests for `mapGamepad`; manual check with a real controller.
-- Notes: small task; no e2e (Playwright can't emulate gamepads reliably).
+- Notes: small task; Playwright can't emulate real gamepads, so the e2e stubs `navigator.getGamepads` and only
+  checks the wiring.
+- Result: radial dead zone 0.2 with rescale; right stick orbits at 2.5 rad/s (500 units/s, scaled by the fixed
+  step), same signs as the mouse (right = turn right, down = look down); all connected pads are merged, so
+  plug/unplug needs no events; a throwing Gamepad API (permissions policy) is ignored. No zoom binding (not in
+  the GDD). 10 unit tests + 1 stubbed e2e (normal mode, WebGPU and WebGL2). **Manual check with a real
+  controller not done** (no controller in this session): moved to the T-017 playtest.
 
 ### T-010 Blocky character with procedural animation
 
@@ -334,7 +340,8 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 - Acceptance criteria:
   - [ ] `course1.ts` has 5 stages, each ending at a checkpoint, finish at the end.
   - [ ] Pure reachability check: every required gap is within `maxJumpReach` with a safety margin.
-  - [ ] Playtested end to end on desktop and on a phone (manual).
+  - [ ] Playtested end to end on desktop and on a phone (manual), including one run with a real gamepad
+        (deferred from T-009: stick directions, orbit speed, dead zone feel).
 - Verification: unit tests for `validateCourse` + reachability on course1; e2e teleports to each checkpoint and
   asserts the run state advances; manual playtest notes in `docs/qa/`.
 
