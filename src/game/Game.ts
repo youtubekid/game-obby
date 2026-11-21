@@ -22,8 +22,10 @@ import {
   cameraRelativeMove,
   createCameraState,
   followTarget,
+  horizontalFov,
   lerpCameraState,
   resolveCameraEye,
+  verticalFovForAspect,
   type CameraState,
 } from './camera/followCamera';
 import { buildCourse, type BuiltCourse } from './course/buildCourse';
@@ -164,10 +166,13 @@ export class Game {
     renderedDistance: number;
     position: Vec3;
     target: Vec3;
+    fov: number;
+    horizontalFov: number;
   } {
     const { yaw, pitch, distance } = this.cameraState;
     const { x, y, z } = this.camera.position;
     const t = this.renderedTarget;
+    const fov = this.camera.fov;
     return {
       yaw,
       pitch,
@@ -175,6 +180,8 @@ export class Game {
       renderedDistance: this.renderedCameraDistance,
       position: { x, y, z },
       target: { x: t.x, y: t.y, z: t.z },
+      fov,
+      horizontalFov: horizontalFov(fov, this.engine.getAspectRatio(this.camera)),
     };
   }
 
@@ -259,6 +266,8 @@ export class Game {
     const { eye, distance } = resolveCameraEye(view, this.solids);
     this.renderedCameraDistance = distance;
     this.camera.position.set(eye.x, eye.y, eye.z);
+    // Follows resizes and rotation: portrait widens the vertical FOV to keep enough side view.
+    this.camera.fov = verticalFovForAspect(this.engine.getAspectRatio(this.camera));
     this.renderedTarget.set(view.target.x, view.target.y, view.target.z);
     this.camera.setTarget(this.renderedTarget);
   }

@@ -196,16 +196,23 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-021 Camera framing in portrait
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: on a phone in portrait the fixed vertical field of view leaves a narrow horizontal view, so the player box
   fills a large part of the screen and gaps to the sides are hard to judge (seen while reviewing T-008).
 - Acceptance criteria:
-  - [ ] In portrait the camera keeps a horizontal field of view at least as wide as in landscape (e.g.
-        `FOVMODE_HORIZONTAL_FIXED` below aspect 1, or a larger default distance), and landscape is unchanged.
-  - [ ] e2e: in the mobile project, `camera()` reports the effective horizontal FOV, and portrait ≥ landscape.
+  - [x] In portrait the camera keeps a minimum horizontal field of view (0.9 rad ≈ 52°) by widening the vertical
+        FOV; landscape (where the horizontal FOV is already wider) is unchanged. _Changed from "at least as wide
+        as landscape": matching a 16:9 landscape on a 9:19.5 phone needs a ~113° vertical FOV, which distorts
+        badly._
+  - [x] e2e: in the mobile project, `camera()` reports the effective FOV; portrait horizontal FOV ≥ 0.9 rad and
+        landscape vertical FOV equals the default.
 - Verification: e2e in the `mobile` project; screenshots of both orientations reviewed.
+- Result: pure `verticalFovForAspect()` (default 0.8 rad vertical, min 0.9 rad horizontal) applied every frame,
+  so rotation needs no reload; a 9:19.5 phone gets ~93° vertical. `camera()` adds `fov`/`horizontalFov`.
+  3 unit tests, 1 mobile e2e (portrait ≥ 0.9 rad, rotate → 0.8). Desktop baselines unchanged; portrait
+  screenshot reviewed (whole start island and course in view, no visible distortion).
 
 ### T-009 Gamepad input source
 

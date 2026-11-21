@@ -5,10 +5,12 @@ import {
   cameraRelativeMove,
   createCameraState,
   followTarget,
+  horizontalFov,
   lerpCameraState,
   occludedDistance,
   rayAabb,
   resolveCameraEye,
+  verticalFovForAspect,
   viewDirection,
   wrapAngle,
 } from '../../src/game/camera/followCamera';
@@ -157,6 +159,33 @@ describe('occlusion pull-in', () => {
     const blocked = resolveCameraEye(state, [box([-10, -10, -3], [10, 20, -2])]);
     expect(blocked.distance).toBeLessThan(state.distance);
     expect(blocked.eye.z).toBeGreaterThan(-2);
+  });
+});
+
+describe('field of view per screen shape', () => {
+  it('keeps the default vertical FOV on landscape and square-ish screens', () => {
+    expect(verticalFovForAspect(16 / 9)).toBe(CAMERA_TUNING.verticalFov);
+    expect(verticalFovForAspect(1.2)).toBe(CAMERA_TUNING.verticalFov);
+    expect(horizontalFov(CAMERA_TUNING.verticalFov, 16 / 9)).toBeGreaterThan(
+      CAMERA_TUNING.minHorizontalFov,
+    );
+  });
+
+  it('widens the vertical FOV in portrait to keep the minimum horizontal FOV', () => {
+    for (const aspect of [1, 0.75, 9 / 19.5, 0.3]) {
+      const fov = verticalFovForAspect(aspect);
+      expect(fov).toBeGreaterThanOrEqual(CAMERA_TUNING.verticalFov);
+      expect(horizontalFov(fov, aspect)).toBeGreaterThanOrEqual(
+        CAMERA_TUNING.minHorizontalFov - 1e-9,
+      );
+    }
+    // A 9:19.5 phone gets about 93° vertical (1.62 rad), well short of fisheye.
+    expect(verticalFovForAspect(9 / 19.5)).toBeLessThan(1.65);
+  });
+
+  it('falls back to the default for a degenerate aspect', () => {
+    expect(verticalFovForAspect(0)).toBe(CAMERA_TUNING.verticalFov);
+    expect(verticalFovForAspect(Number.NaN)).toBe(CAMERA_TUNING.verticalFov);
   });
 });
 

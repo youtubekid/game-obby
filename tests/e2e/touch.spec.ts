@@ -200,6 +200,23 @@ test.describe('touch controls', () => {
   });
 });
 
+test('portrait widens the view; landscape keeps the default FOV', async ({ page }) => {
+  await openGame(page, 'webgl2', { freeze: 10, settleFrames: 2 });
+  const portrait = page.viewportSize();
+  if (!portrait) throw new Error('No viewport');
+  const camera = () => page.evaluate(() => window.__GAME__?.camera());
+
+  const tall = await camera();
+  expect(tall?.horizontalFov).toBeGreaterThanOrEqual(0.9 - 1e-6);
+  expect(tall?.fov).toBeGreaterThan(0.8);
+
+  // The FOV follows rotation without a reload.
+  await page.setViewportSize({ width: portrait.height, height: portrait.width });
+  await expect.poll(async () => (await camera())?.fov).toBeCloseTo(0.8, 5);
+  const wide = await camera();
+  expect(wide?.horizontalFov).toBeGreaterThan(tall?.horizontalFov ?? Infinity);
+});
+
 test('overlay appears only after the first touch', async ({ page }) => {
   // Normal mode (no ?touch=1): the overlay starts hidden.
   await page.goto('./?renderer=webgl2');

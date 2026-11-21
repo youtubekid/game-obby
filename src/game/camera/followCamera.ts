@@ -24,6 +24,13 @@ export interface CameraTuning {
   readonly followRate: number;
   /** Gap kept between the camera and a blocking solid when pulled in (m). */
   readonly collisionPadding: number;
+  /** Vertical field of view (rad) on landscape and square screens (Babylon's default). */
+  readonly verticalFov: number;
+  /**
+   * Narrowest horizontal field of view (rad). Tall portrait screens widen the vertical FOV to keep
+   * at least this much side view; landscape screens already exceed it.
+   */
+  readonly minHorizontalFov: number;
   /**
    * Floor for the pulled-in distance (m). Small on purpose: a solid right behind the player wins
    * over keeping distance, so the camera never ends up inside or behind it.
@@ -43,8 +50,25 @@ export const CAMERA_TUNING: CameraTuning = {
   targetHeight: 1.5,
   followRate: 12,
   collisionPadding: 0.3,
+  verticalFov: 0.8,
+  minHorizontalFov: 0.9,
   minPulledDistance: 0.1,
 };
+
+/** Horizontal field of view for a vertical one on a screen of `aspect` (width / height). */
+export function horizontalFov(verticalFov: number, aspect: number): number {
+  return 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+}
+
+/**
+ * Vertical field of view for a screen of `aspect` (width / height): the default, widened just
+ * enough in portrait to keep `minHorizontalFov` of side view.
+ */
+export function verticalFovForAspect(aspect: number, tuning: CameraTuning = CAMERA_TUNING): number {
+  if (!(aspect > 0) || !Number.isFinite(aspect)) return tuning.verticalFov;
+  const needed = 2 * Math.atan(Math.tan(tuning.minHorizontalFov / 2) / aspect);
+  return Math.max(tuning.verticalFov, needed);
+}
 
 export interface CameraState {
   readonly yaw: number;

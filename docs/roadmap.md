@@ -28,6 +28,6 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   T-019 done (visual tolerance now catches a 1 m move; build label hidden rather than masked).
   T-007 done (third-person follow camera, mouse orbit/zoom, camera-relative movement), T-020 done (shadow
   acne fixed with depth/normal bias), T-008 done (touch joystick, jump, orbit, pinch; `mobile` e2e project);
-  follow-up T-021 (camera framing in portrait). **Next step: `/next` → T-021, then T-009 (gamepad).**
+  T-021 done (portrait widens the vertical FOV). **Next step: `/next` → T-009 (gamepad).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

@@ -25,7 +25,8 @@ export interface GameDebugApi {
   /**
    * Follow camera after the latest step: yaw (0 looks along +z, positive turns right), pitch
    * (positive looks down), wanted zoom `distance`, `renderedDistance` after pull-in when geometry is
-   * in the way, and the rendered camera position and look-at target.
+   * in the way, the rendered camera position and look-at target, and the vertical (`fov`) and
+   * horizontal field of view in radians for the current screen shape.
    */
   camera(): {
     yaw: number;
@@ -34,6 +35,8 @@ export interface GameDebugApi {
     renderedDistance: number;
     position: Vec3;
     target: Vec3;
+    fov: number;
+    horizontalFov: number;
   };
   /** Touch overlay state: shown after the first touch, or from the start with `?touch=1`. */
   touch(): { visible: boolean };
@@ -82,6 +85,8 @@ export function installDebugApi(version: string): GameDebugApi {
       renderedDistance: 0,
       position: { x: 0, y: 0, z: 0 },
       target: { x: 0, y: 0, z: 0 },
+      fov: 0,
+      horizontalFov: 0,
     }),
     touch: () => ({ visible: false }),
     advance: () => 0,
