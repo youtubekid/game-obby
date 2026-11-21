@@ -9,6 +9,11 @@ export interface LaunchOptions {
   debug: boolean;
   /** In test mode the simulation stops advancing after this many steps (rendering continues). */
   freezeAtStep: number;
+  /**
+   * Shows the touch controls from the start (`?touch=1`). In test mode it is also the only way to
+   * enable the touch source, so e2e tests can drive real touch events.
+   */
+  touch: boolean;
 }
 
 /** Parses launch options from a URL query string, e.g. `?renderer=webgl2&test=1`. */
@@ -20,6 +25,7 @@ export function parseLaunchOptions(search: string): LaunchOptions {
     test: isTruthy(params.get('test')),
     debug: isTruthy(params.get('debug')),
     freezeAtStep: parsePositiveInt(params.get('freeze'), 60),
+    touch: isTruthy(params.get('touch')),
   };
 }
 

@@ -16,6 +16,7 @@ import type { LaunchOptions } from '../core/options';
 import { InputRouter, type InputActions, type PartialActions } from '../input/actions';
 import { KeyboardSource } from '../input/keyboard';
 import { MouseCameraSource } from '../input/pointer';
+import { TouchControls } from '../input/touch';
 import {
   applyCameraInput,
   cameraRelativeMove,
@@ -56,6 +57,8 @@ export class Game {
   private readonly solids: readonly Aabb[];
   private readonly playerMesh: Mesh;
   private readonly camera: TargetCamera;
+  /** Touch overlay; absent in test mode unless `?touch=1`. */
+  private readonly touch: TouchControls | null = null;
   private player: PlayerState;
   /** Player state before the latest step, for render interpolation. */
   private previousPlayer: PlayerState;
@@ -128,10 +131,15 @@ export class Game {
     this.syncView(1);
 
     // Real devices are ignored in test mode; tests inject actions through the debug API.
+    // The one exception is `?touch=1`, so e2e tests can drive the touch overlay with real touches.
+    const canvas = engine.getRenderingCanvas();
     if (!options.test) {
       this.input.add(new KeyboardSource(window));
-      const canvas = engine.getRenderingCanvas();
       if (canvas) this.input.add(new MouseCameraSource(canvas));
+    }
+    if (canvas && (!options.test || options.touch)) {
+      this.touch = new TouchControls(canvas, { forceVisible: options.touch });
+      this.input.add(this.touch);
     }
 
     this.scene.onBeforeRenderObservable.add(() => {
@@ -168,6 +176,11 @@ export class Game {
       position: { x, y, z },
       target: { x: t.x, y: t.y, z: t.z },
     };
+  }
+
+  /** Whether the touch overlay is on screen. */
+  get touchControlsVisible(): boolean {
+    return this.touch?.visible ?? false;
   }
 
   /** Player state for tests: feet position, velocity, ground contact. */

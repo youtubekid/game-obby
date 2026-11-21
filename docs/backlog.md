@@ -172,18 +172,40 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-008 Touch controls: joystick, jump button, drag to orbit, pinch to zoom
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: the game is fully playable on a phone in portrait and landscape.
 - Acceptance criteria:
-  - [ ] `src/input/touch.ts` + DOM overlay: virtual joystick bottom-left, jump button bottom-right (≥ 64 px,
+  - [x] `src/input/touch.ts` + DOM overlay: virtual joystick bottom-left, jump button bottom-right (≥ 64 px,
         safe-area insets), right-half drag orbits, pinch zooms. Pointer Events, `touch-action: none`.
-  - [ ] Overlay appears only after a touch is detected (or `?touch=1`); hidden for mouse-only users.
-  - [ ] Multi-touch: holding the joystick while tapping jump works.
+  - [x] Overlay appears only after a touch is detected (or `?touch=1`); hidden for mouse-only users.
+  - [x] Multi-touch: holding the joystick while tapping jump works.
 - Verification: unit test for joystick vector maths (dead zone, clamping); e2e project with a mobile viewport and
   `hasTouch`: dispatch touch events on the joystick → `player().position` changes; tap jump → player jumps.
 - Notes: add a `mobile` Playwright project (WebGL2, e.g. Pixel 7 emulation) to `playwright.config.ts`.
+- Result: `TouchControls` (fixed 136 px joystick, 88 px jump button, safe-area insets, `viewport-fit=cover`)
+  plus pure `touchMath.ts` (15 % dead zone with rescale, knob clamp, pinch delta). Jump is latched until the
+  next step, so a tap shorter than one step still jumps; like the keyboard, a quick tap is a short hop
+  (variable jump height). Touch state resets on blur, page hide and resize/rotation; lifting one finger of a
+  pinch doesn't turn the other into an orbit drag. `?touch=1` shows the overlay up front and is the only way
+  the touch source runs in test mode. Debug API `touch()`. New `mobile` Playwright project (Pixel 7, WebGL2)
+  runs `touch.spec.ts` with real touches via CDP (7 tests incl. portrait/landscape layout and multi-touch);
+  7 unit tests. Portrait and landscape screenshots reviewed by eye. Not checked on a real phone yet (T-017
+  playtest). Initial JS 348 kB.
+
+### T-021 Camera framing in portrait
+
+- Status: Ready
+- Milestone: M2
+- Labels: feature
+- Goal: on a phone in portrait the fixed vertical field of view leaves a narrow horizontal view, so the player box
+  fills a large part of the screen and gaps to the sides are hard to judge (seen while reviewing T-008).
+- Acceptance criteria:
+  - [ ] In portrait the camera keeps a horizontal field of view at least as wide as in landscape (e.g.
+        `FOVMODE_HORIZONTAL_FIXED` below aspect 1, or a larger default distance), and landscape is unchanged.
+  - [ ] e2e: in the mobile project, `camera()` reports the effective horizontal FOV, and portrait ≥ landscape.
+- Verification: e2e in the `mobile` project; screenshots of both orientations reviewed.
 
 ### T-009 Gamepad input source
 

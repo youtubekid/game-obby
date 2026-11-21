@@ -8,15 +8,17 @@ describe('parseLaunchOptions', () => {
       test: false,
       debug: false,
       freezeAtStep: 60,
+      touch: false,
     });
   });
 
-  it('reads renderer, test, debug and freeze flags', () => {
-    expect(parseLaunchOptions('?renderer=webgl2&test=1&debug=true&freeze=10')).toEqual({
+  it('reads renderer, test, debug, freeze and touch flags', () => {
+    expect(parseLaunchOptions('?renderer=webgl2&test=1&debug=true&freeze=10&touch=1')).toEqual({
       renderer: 'webgl2',
       test: true,
       debug: true,
       freezeAtStep: 10,
+      touch: true,
     });
   });
 

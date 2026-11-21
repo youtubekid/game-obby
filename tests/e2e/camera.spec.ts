@@ -37,6 +37,10 @@ test('mouse drag orbits right and wheel zooms out', async ({ page }, testInfo) =
   await page.mouse.move(1000, 400, { steps: 5 });
   await page.waitForTimeout(100);
   expect((await read(page)).camera.yaw).toBeCloseTo(released, 5);
+
+  // Mouse-only players never see the touch overlay.
+  expect(await page.evaluate(() => window.__GAME__?.touch().visible)).toBe(false);
+  await expect(page.locator('#touch-ui')).toBeHidden();
 });
 
 test.describe('follow camera', () => {

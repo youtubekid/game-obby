@@ -35,6 +35,8 @@ export interface GameDebugApi {
     position: Vec3;
     target: Vec3;
   };
+  /** Touch overlay state: shown after the first touch, or from the start with `?touch=1`. */
+  touch(): { visible: boolean };
   /** Test mode only: lets the frozen simulation run `steps` more steps; returns the new freeze step. */
   advance(steps: number): number;
   input: {
@@ -81,6 +83,7 @@ export function installDebugApi(version: string): GameDebugApi {
       position: { x: 0, y: 0, z: 0 },
       target: { x: 0, y: 0, z: 0 },
     }),
+    touch: () => ({ visible: false }),
     advance: () => 0,
     input: { set: () => undefined, clear: () => undefined, actions: () => NO_ACTIONS },
   };
@@ -98,6 +101,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.player = () => game.playerState;
   api.playerMesh = () => game.playerMeshPosition;
   api.camera = () => game.cameraInfo;
+  api.touch = () => ({ visible: game.touchControlsVisible });
   api.advance = (steps) => game.advance(steps);
   api.input = {
     set: (actions) => {

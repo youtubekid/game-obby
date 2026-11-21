@@ -7,6 +7,9 @@ const port = 4173;
 const basePath = normaliseBasePath(loadEnv('e2e', process.cwd(), 'GAME_').GAME_BASE_PATH);
 const isCI = Boolean(process.env.CI);
 
+/** Specs that need a touch screen run only in the `mobile` project. */
+const mobileOnly = /touch\.spec\.ts$/;
+
 // Chromium flags that expose WebGPU in automated (headless) runs.
 const webgpuArgs = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist'];
 
@@ -39,6 +42,7 @@ export default defineConfig({
   projects: [
     {
       name: 'webgpu',
+      testIgnore: mobileOnly,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chromium',
@@ -48,8 +52,21 @@ export default defineConfig({
     },
     {
       name: 'webgl2',
+      testIgnore: mobileOnly,
       use: {
         ...devices['Desktop Chrome'],
+        channel: 'chromium',
+        launchOptions: { args: ['--ignore-gpu-blocklist'] },
+      },
+      metadata: { renderer: 'webgl2' },
+    },
+    {
+      // Phone emulation with touch (ADR 0006). WebGL2 only: it is what most phones fall back to and
+      // runs on SwiftShader in CI. Only the touch specs run here; the rest is covered on desktop.
+      name: 'mobile',
+      testMatch: mobileOnly,
+      use: {
+        ...devices['Pixel 7'],
         channel: 'chromium',
         launchOptions: { args: ['--ignore-gpu-blocklist'] },
       },

@@ -29,6 +29,69 @@ body {
   pointer-events: none;
 }
 
+/* Touch controls (src/input/touch.ts). Only the controls take pointer events; the rest of the
+   screen goes to the canvas for orbit and pinch. Safe-area insets keep them clear of notches. */
+#touch-ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#touch-ui[hidden] {
+  display: none;
+}
+
+.touch-joystick,
+.touch-jump {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 0.75);
+  background: rgb(20 40 80 / 0.28);
+  box-sizing: border-box;
+}
+
+.touch-joystick {
+  left: calc(24px + env(safe-area-inset-left, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 136px;
+  height: 136px;
+}
+
+.touch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.8);
+  pointer-events: none;
+}
+
+.touch-jump {
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  width: 88px;
+  height: 88px;
+  padding: 0;
+  color: #fff;
+  font:
+    600 16px system-ui,
+    sans-serif;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.touch-jump.pressed {
+  background: rgb(255 255 255 / 0.45);
+}
+
 #error-panel {
   display: none;
   position: fixed;

@@ -11,8 +11,10 @@
 | E2E smoke         | Playwright (Chromium)         | `tests/e2e/smoke.spec.ts`  | `qa`, CI                              |
 | Visual regression | Playwright screenshots        | `tests/e2e/visual.spec.ts` | `qa`; CI only where a baseline exists |
 
-E2E runs two projects: **webgpu** (skipped when no adapter, e.g. GPU-less CI runners) and **webgl2**
-(SwiftShader on CI). E2E builds are served from `/play/game1/` to prove subfolder hosting.
+E2E runs three projects: **webgpu** (skipped when no adapter, e.g. GPU-less CI runners), **webgl2**
+(SwiftShader on CI) and **mobile** (Pixel 7 emulation with touch, WebGL2; runs only `*touch.spec.ts`, which
+sends real touches through CDP `Input.dispatchTouchEvent`; note that CDP's `touchEnd` releases the points it
+lists). E2E builds are served from `/play/game1/` to prove subfolder hosting.
 
 ## Deterministic test mode
 

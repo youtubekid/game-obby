@@ -46,10 +46,18 @@ export async function readGameState(page: Page): Promise<GameState | null> {
 export async function openGame(
   page: Page,
   renderer: 'webgpu' | 'webgl2',
-  { freeze = 60, settleFrames = 15 }: { freeze?: number; settleFrames?: number } = {},
+  {
+    freeze = 60,
+    settleFrames = 15,
+    query = '',
+  }: {
+    freeze?: number;
+    settleFrames?: number;
+    /** Extra URL params, e.g. `&touch=1`. */ query?: string;
+  } = {},
 ): Promise<GameState> {
   const minFrames = freeze + settleFrames;
-  await page.goto(`./?test=1&renderer=${renderer}&freeze=${freeze}`);
+  await page.goto(`./?test=1&renderer=${renderer}&freeze=${freeze}${query}`);
   await expect
     .poll(async () => {
       const state = await readGameState(page);
