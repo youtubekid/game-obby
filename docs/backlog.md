@@ -75,19 +75,23 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-005 Kinematic character controller (pure logic)
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature, tech
 - Goal: deterministic movement physics per ADR 0005, testable without Babylon.
 - Acceptance criteria:
-  - [ ] `src/game/player/controller.ts`: `step(state, actions, solids, dt)` → new state. Capsule/AABB player vs
+  - [x] `src/game/player/controller.ts`: `step(state, actions, solids, dt)` → new state. Capsule/AABB player vs
         AABB solids; gravity, terminal velocity, ground/wall/ceiling resolution, walk acceleration and friction,
         jump with variable height (release early = lower), coyote time (~100 ms), jump buffer (~100 ms).
-  - [ ] Tunables in one `PLAYER_TUNING` object (run speed, jump height, gravity) with documented defaults.
-  - [ ] Helper `maxJumpReach(tuning)` (horizontal distance and height), used later to validate the course.
+  - [x] Tunables in one `PLAYER_TUNING` object (run speed, jump height, gravity) with documented defaults.
+  - [x] Helper `maxJumpReach(tuning)` (horizontal distance and height), used later to validate the course.
 - Verification: unit tests in `tests/unit/controller.test.ts`: lands on floor, can't pass through walls, coyote
   jump works, buffered jump works, max jump height matches tuning within 5 %.
 - Notes: no Babylon imports. Moving-platform carry comes in T-013.
+- Result: `step(state, input, solids, dtMs, tuning?)` with per-axis AABB resolution (Y first), 21 unit tests.
+  Defaults: run 7 m/s, jump 2.2 m, gravity 30 m/s², max jump reach ≈ 5.3 m. Collision assumes the player starts
+  each step outside solids; T-013 must push out along the smallest overlap. `maxJumpReach().distance` ignores
+  foot overhang (2 × halfWidth) and assumes full run speed at take-off; course validation must allow for that.
 
 ### T-006 Player in the scene with keyboard input and input actions
 
