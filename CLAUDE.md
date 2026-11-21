@@ -22,6 +22,21 @@ site to **Cloudflare** (assets only, `wrangler.toml`), servable from any subfold
 
 Never run `npm run deploy` or push; deployment happens through CI on `main` and is the user's call.
 
+**Agents: run gates through the `agent:*` scripts** (`scripts/agent-run.mjs`). They print one line per step plus
+the tail of a failing step, and write full logs to `logs/agent/<step>.log` (open them with Read). Run them as a
+plain command: no pipes, `2>&1`, `;` or `Select-*` filters, which trigger permission prompts.
+
+| Command                        | What it does                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------- |
+| `npm run agent:check`          | Same steps as `check`, compact output                                             |
+| `npm run agent:qa`             | Same steps as `qa`, compact output (run before commit)                            |
+| `npm run agent:unit -- <args>` | Unit tests; extra args go to vitest (e.g. `-- tests/unit/input.test.ts`)          |
+| `npm run agent:e2e -- <args>`  | e2e build + Playwright; extra args go to Playwright (e.g. `-- --grep player`)     |
+| `npm run agent:visual`         | Force-regenerates visual baselines and lists changed images with their pixel diff |
+
+`agent:visual` always rewrites the PNGs; images reported as "no visible change" are re-encoding noise, so restore
+them with `git checkout -- <path>`. Review every other listed image with Read before committing it.
+
 Use the Read/Glob/Grep/Edit tools for files. Shell calls only for `npm`, `npx` and `git` (already allowlisted);
 cmdlets like `Get-ChildItem`, `Get-Content` or `Set-Content` trigger permission prompts.
 

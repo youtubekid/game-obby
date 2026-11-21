@@ -10,6 +10,7 @@
       "Bash(npm run test*)",
       "Bash(npm run check*)",
       "Bash(npm run qa*)",
+      "Bash(npm run agent:*)",
       "Bash(npm run preview*)",
       "Bash(npm test*)",
       "Bash(npx playwright test*)",

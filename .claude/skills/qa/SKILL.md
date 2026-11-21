@@ -5,7 +5,7 @@ description: Full quality-assurance pass on the current game build - automated g
 
 # Quality assurance pass
 
-1. Run `npm run qa`. Record failures with their output.
+1. Run `npm run agent:qa` (no pipes). Record failures with their output; full logs are in `logs/agent/`.
 2. Visual review: run the e2e suite and open the screenshots attached in `test-results/` and the baselines in
    `tests/e2e/__screenshots__` with the Read tool. Check for rendering artifacts, missing shadows/lighting,
    wrong colors, UI overlap, and differences between the `webgpu` and `webgl2` projects.

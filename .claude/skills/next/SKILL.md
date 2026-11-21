@@ -13,9 +13,11 @@ description: Run one iteration of the development loop - take the top Ready task
 3. **Implement.** Keep changes scoped to the task. Follow the architecture rules in `CLAUDE.md`.
    Add or extend tests as the task's verification line says: unit tests for logic in `tests/unit`,
    e2e tests in `tests/e2e` that observe state through `window.__GAME__`.
-4. **Verify.** Run `npm run qa` (typecheck, lint, format, unit, build, e2e on WebGPU and WebGL2).
-   - Visual changes: run `npm run test:e2e:update`, then look at the changed images in `tests/e2e/__screenshots__`
-     with the Read tool and confirm they look right before keeping them.
+4. **Verify.** Run `npm run agent:qa` (typecheck, lint, format, unit, build, e2e on WebGPU and WebGL2) as a plain
+   command, without pipes; full logs are in `logs/agent/`. Use `npm run agent:unit` / `agent:e2e -- --grep x` while
+   iterating.
+   - Visual changes: run `npm run agent:visual`, then look at each listed image with the Read tool and confirm it
+     looks right before keeping it; restore images reported as "no visible change".
    - Fix failures; never weaken or skip a test to make it pass without writing down why in the task.
 5. **Review.** Use the `qa-reviewer` subagent on the diff for an independent check against the acceptance criteria.
    Address its blocking findings.

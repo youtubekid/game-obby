@@ -23,6 +23,11 @@
     "test:e2e:update": "npm run build:e2e && playwright test --update-snapshots",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
     "qa": "npm run check && npm run test:e2e",
+    "agent:check": "node scripts/agent-run.mjs check",
+    "agent:qa": "node scripts/agent-run.mjs qa",
+    "agent:unit": "node scripts/agent-run.mjs unit",
+    "agent:e2e": "node scripts/agent-run.mjs e2e",
+    "agent:visual": "node scripts/agent-run.mjs visual",
     "cf:dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "prepare": "husky"

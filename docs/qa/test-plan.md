@@ -23,7 +23,9 @@ E2E runs two projects: **webgpu** (skipped when no adapter, e.g. GPU-less CI run
 ## Visual baselines
 
 Stored in `tests/e2e/__screenshots__/<project>/` and named per OS (`scene-win32.png`, `scene-linux.png`)
-because GPU and driver output differs. Update with `npm run test:e2e:update` and always review the images.
+because GPU and driver output differs. Update with `npm run test:e2e:update` (only rewrites images over the tolerance) or
+`npm run agent:visual` (rewrites all and reports the pixel diff of each against `HEAD`), and always review the
+images.
 
 ## Budgets
 
