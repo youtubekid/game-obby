@@ -13,8 +13,13 @@ export interface Aabb {
   readonly max: Vec3;
 }
 
-/** What a solid does. Later tasks extend the union (checkpoint, hazard, mover, ...). */
-export type SolidKind = 'platform';
+/**
+ * What a solid does. Later tasks extend the union (hazard, mover, ...).
+ * - `platform`: plain ground.
+ * - `checkpoint`: ground that saves progress when the player stands on it (a stage's landing island);
+ *   the player respawns on top of its centre.
+ */
+export type SolidKind = 'platform' | 'checkpoint';
 
 /** A static box in the course, described by its centre and full size. */
 export interface Solid {
@@ -36,6 +41,8 @@ export interface Stage {
 export interface Course {
   readonly name: string;
   readonly stages: readonly Stage[];
+  /** Falling below this height (feet y, m) is falling into the void: the player respawns. */
+  readonly killY: number;
 }
 
 export function vec3(x: number, y: number, z: number): Vec3 {
@@ -65,4 +72,14 @@ export function aabbOverlap(a: Aabb, b: Aabb): boolean {
 /** Every solid in the course, in stage order. */
 export function allSolids(course: Course): Solid[] {
   return course.stages.flatMap((stage) => stage.solids);
+}
+
+/** Checkpoint solids in course order; their position in this list is the checkpoint number. */
+export function checkpoints(course: Course): Solid[] {
+  return allSolids(course).filter((solid) => solid.kind === 'checkpoint');
+}
+
+/** Where the player stands after respawning on a solid: the centre of its top face. */
+export function topCentre(solid: Solid): Vec3 {
+  return vec3(solid.center.x, solid.center.y + solid.size.y / 2, solid.center.z);
 }

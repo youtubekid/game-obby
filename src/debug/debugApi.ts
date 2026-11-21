@@ -47,6 +47,12 @@ export interface GameDebugApi {
     pose: { leftArm: number; rightArm: number; leftLeg: number; rightLeg: number };
     meshes: number;
   };
+  /** Run progress: last checkpoint reached (-1 = none, else index in course order) and deaths. */
+  run(): { checkpoint: number; deaths: number };
+  debug: {
+    /** Test mode only: moves the player's feet to (x, y, z), at rest; the camera follows at once. */
+    teleport(x: number, y: number, z: number): void;
+  };
   /** Touch overlay state: shown after the first touch, or from the start with `?touch=1`. */
   touch(): { visible: boolean };
   /** Test mode only: lets the frozen simulation run `steps` more steps; returns the new freeze step. */
@@ -102,6 +108,8 @@ export function installDebugApi(version: string): GameDebugApi {
       pose: { leftArm: 0, rightArm: 0, leftLeg: 0, rightLeg: 0 },
       meshes: 0,
     }),
+    run: () => ({ checkpoint: -1, deaths: 0 }),
+    debug: { teleport: () => undefined },
     touch: () => ({ visible: false }),
     advance: () => 0,
     input: { set: () => undefined, clear: () => undefined, actions: () => NO_ACTIONS },
@@ -122,6 +130,12 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.camera = () => game.cameraInfo;
   api.touch = () => ({ visible: game.touchControlsVisible });
   api.avatar = () => game.avatarInfo;
+  api.run = () => game.runInfo;
+  api.debug = {
+    teleport: (x, y, z) => {
+      game.teleport({ x, y, z });
+    },
+  };
   api.advance = (steps) => game.advance(steps);
   api.input = {
     set: (actions) => {

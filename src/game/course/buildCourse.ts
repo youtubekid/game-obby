@@ -9,6 +9,9 @@ import { allSolids, type Course, type Solid, type SolidKind } from './types';
 /** Default colour per solid kind (bright low-poly palette, see docs/game-design.md). */
 const KIND_COLORS: Record<SolidKind, string> = {
   platform: '#5cc85c',
+  // GDD: checkpoints are green. A deep, saturated emerald renders as vivid green under the current
+  // bright lighting and stands out from the pale grassy platforms (lighter values wash to cyan).
+  checkpoint: '#0f9d58',
 };
 
 export interface BuiltCourse {

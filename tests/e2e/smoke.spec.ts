@@ -29,8 +29,9 @@ test.describe('smoke', () => {
     const course = await page.evaluate(() => window.__GAME__?.course());
     expect(course?.stages).toBeGreaterThanOrEqual(1);
     expect(course?.solids).toBeGreaterThan(1);
-    // Solids are merged per colour: course1 stage 1 uses three colours.
-    expect(course?.meshes).toBe(3);
+    // Solids are merged per colour: course1 stage 1 uses three platform colours plus the
+    // checkpoint colour.
+    expect(course?.meshes).toBe(4);
     await expect(page.locator('#build-info')).toContainText(renderer);
 
     const screenshot = await page.locator('#game-canvas').screenshot();

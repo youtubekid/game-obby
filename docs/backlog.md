@@ -259,19 +259,27 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-011 Checkpoints, falling into the void and respawn
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: touching a checkpoint pad saves progress; falling below the kill height respawns the player at the last
   checkpoint and counts a death.
 - Acceptance criteria:
-  - [ ] Course data gains `checkpoint` solids (green pads) and a per-course `killY`.
-  - [ ] Pure `src/game/run/runState.ts`: current checkpoint, deaths, respawn position; checkpoints only move
+  - [x] Course data gains `checkpoint` solids (green pads) and a per-course `killY`.
+  - [x] Pure `src/game/run/runState.ts`: current checkpoint, deaths, respawn position; checkpoints only move
         forward.
-  - [ ] Respawn resets velocity, places the player on the pad, brief fade or flash (optional).
-  - [ ] Debug API: `run()` → `{ checkpoint, deaths }`; `debug.teleport(x, y, z)` (test mode only).
+  - [x] Respawn resets velocity, places the player on the pad, brief fade or flash (optional).
+  - [x] Debug API: `run()` → `{ checkpoint, deaths }`; `debug.teleport(x, y, z)` (test mode only).
 - Verification: unit tests for runState; e2e: teleport above the void → after N steps `deaths === 1` and the player
   stands on the last checkpoint.
+- Result: a stage's landing island is its `checkpoint` solid (a thin pad on top would need a step-up the
+  controller doesn't have), saved when the player stands on it; emerald `#0f9d58` (lighter teal washed out to
+  cyan under the current lighting). `killY` validated below the lowest solid; validation also checks that
+  stage spawns and checkpoint respawn points leave room for the player's box. Respawn at the pad's top centre
+  at rest; camera and render interpolation jump with the player instead of sweeping. Fade/flash not done
+  (optional; fits with T-015 HUD or M3 polish). Course 1 stage 1 now ends on checkpoint `s1-end`, killY −12.
+  Unit tests for runState, standingOn and the new validation; 5 e2e (fall at start, checkpoint save + respawn
+  on it, camera snaps on the respawn step).
 
 ### T-012 Hazards: kill floors and spinning bars
 

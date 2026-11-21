@@ -28,7 +28,15 @@ import {
 } from './camera/followCamera';
 import { buildCourse, type BuiltCourse } from './course/buildCourse';
 import { course1 } from './course/course1';
-import { allSolids, solidAabb, type Aabb, type Course, type Vec3 } from './course/types';
+import {
+  allSolids,
+  checkpoints,
+  solidAabb,
+  topCentre,
+  type Aabb,
+  type Course,
+  type Vec3,
+} from './course/types';
 import { validateCourse } from './course/validateCourse';
 import {
   createPlayerState,
@@ -43,6 +51,14 @@ import {
   type Pose,
 } from './player/animation';
 import { createAvatar, type Avatar } from './player/avatar';
+import {
+  createRunState,
+  hasFallen,
+  reachCheckpoint,
+  recordDeath,
+  standingOn,
+  type RunState,
+} from './run/runState';
 import { FixedStepper } from './sim/fixedStep';
 import { lerpVec3 } from './sim/interpolate';
 
@@ -68,6 +84,10 @@ export class Game {
   /** Touch overlay; absent in test mode unless `?touch=1`. */
   private readonly touch: TouchControls | null = null;
   private player: PlayerState;
+  private run: RunState;
+  /** Checkpoint pads (in checkpoint order) and the respawn point on each. */
+  private readonly checkpointBoxes: readonly Aabb[];
+  private readonly checkpointRespawns: readonly Vec3[];
   /** Player state before the latest step, for render interpolation. */
   private previousPlayer: PlayerState;
   private cameraState: CameraState;
@@ -122,6 +142,10 @@ export class Game {
     this.solids = allSolids(this.course).map(solidAabb);
 
     const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
+    this.run = createRunState(spawn);
+    const pads = checkpoints(this.course);
+    this.checkpointBoxes = pads.map(solidAabb);
+    this.checkpointRespawns = pads.map(topCentre);
     this.player = createPlayerState(spawn);
     this.previousPlayer = this.player;
     this.avatar = createAvatar(this.scene, shadows);
@@ -255,8 +279,43 @@ export class Game {
       this.solids,
       deltaMs,
     );
+    this.updateRun();
     this.cameraState = followTarget(this.cameraState, this.player.position, deltaMs);
     this.animation = stepAnimation(this.animation, this.player, deltaMs);
+  }
+
+  /** Saves checkpoints the player stands on and respawns after a fall into the void. */
+  private updateRun(): void {
+    const { position, grounded } = this.player;
+    const pad = standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.checkpointBoxes);
+    const respawn = this.checkpointRespawns[pad];
+    if (respawn) this.run = reachCheckpoint(this.run, pad, respawn);
+    if (hasFallen(position, this.course.killY)) {
+      this.run = recordDeath(this.run);
+      this.placePlayer(this.run.respawn);
+    }
+  }
+
+  /**
+   * Puts the player at `feet` at rest (respawn, teleport). Camera and render interpolation jump
+   * with it instead of sweeping across the course; the camera keeps its orbit and zoom.
+   */
+  private placePlayer(feet: Vec3): void {
+    this.player = createPlayerState(feet);
+    this.previousPlayer = this.player;
+    this.cameraState = { ...this.cameraState, target: createCameraState(feet).target };
+    this.previousCamera = this.cameraState;
+    this.animation = createAnimationState(this.animation.facing);
+  }
+
+  /** Test mode only: moves the player to `feet` at rest, e.g. above the void or onto a checkpoint. */
+  teleport(feet: Vec3): void {
+    if (this.options.test && Number.isFinite(feet.x + feet.y + feet.z)) this.placePlayer(feet);
+  }
+
+  /** Run progress: last checkpoint (-1 = none) and deaths. */
+  get runInfo(): { checkpoint: number; deaths: number } {
+    return { checkpoint: this.run.checkpoint, deaths: this.run.deaths };
   }
 
   /** Places the avatar and camera between the previous and current step (alpha 0..1). */

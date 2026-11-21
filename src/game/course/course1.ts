@@ -34,8 +34,11 @@ export const course1: Course = {
           size: vec3(3, 1, 3),
           color: '#7ccf5a',
         },
-        { id: 's1-end', kind: 'platform', center: vec3(0, 0.5, 19), size: vec3(6, 1, 6) },
+        // The stage's landing island is its checkpoint.
+        { id: 's1-end', kind: 'checkpoint', center: vec3(0, 0.5, 19), size: vec3(6, 1, 6) },
       ],
     },
   ],
+  // Well below the lowest island, so a fall reads as a fall before the respawn.
+  killY: -12,
 };
