@@ -26,6 +26,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   T-004 done (course as data + builder), T-005 done (pure kinematic controller, 21 unit tests),
   T-006 done (box player + keyboard input; input injection and `advance(n)` in the debug API).
   T-019 done (visual tolerance now catches a 1 m move; build label hidden rather than masked).
-  **Next step: `/next` → T-007 (follow camera).**
+  T-007 done (third-person follow camera, mouse orbit/zoom, camera-relative movement); follow-up T-020
+  (shadow acne visible with the closer camera). **Next step: `/next` → T-008 (touch controls).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

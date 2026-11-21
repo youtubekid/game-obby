@@ -1,6 +1,6 @@
 // Deep imports keep the bundle small (see docs/adr/0002-babylon-deep-imports.md).
 // Non-".pure" paths are used on purpose: they register the side effects a feature needs.
-import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
+import { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
@@ -15,6 +15,16 @@ import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
 import { InputRouter, type InputActions, type PartialActions } from '../input/actions';
 import { KeyboardSource } from '../input/keyboard';
+import { MouseCameraSource } from '../input/pointer';
+import {
+  applyCameraInput,
+  cameraRelativeMove,
+  createCameraState,
+  followTarget,
+  lerpCameraState,
+  resolveCameraEye,
+  type CameraState,
+} from './camera/followCamera';
 import { buildCourse, type BuiltCourse } from './course/buildCourse';
 import { course1 } from './course/course1';
 import { allSolids, solidAabb, type Aabb, type Course, type Vec3 } from './course/types';
@@ -35,8 +45,8 @@ export const FIXED_STEP_MS = 1000 / 60;
 const SKY_COLOR = new Color4(0.55, 0.78, 0.97, 1);
 
 /**
- * Sky scene with the course built from data and a placeholder box player driven by the kinematic
- * controller. The follow camera replaces the orbit camera in T-007.
+ * Sky scene with the course built from data, a placeholder box player driven by the kinematic
+ * controller and a third-person follow camera (orbit/zoom from input actions).
  */
 export class Game {
   readonly scene: Scene;
@@ -45,9 +55,16 @@ export class Game {
   private readonly builtCourse: BuiltCourse;
   private readonly solids: readonly Aabb[];
   private readonly playerMesh: Mesh;
+  private readonly camera: TargetCamera;
   private player: PlayerState;
   /** Player state before the latest step, for render interpolation. */
   private previousPlayer: PlayerState;
+  private cameraState: CameraState;
+  private previousCamera: CameraState;
+  /** Camera distance after occlusion pull-in, as last rendered. */
+  private renderedCameraDistance: number;
+  /** Look-at point as last rendered (reused every frame). */
+  private readonly renderedTarget = Vector3.Zero();
   private readonly stepper = new FixedStepper(FIXED_STEP_MS);
   /** Test mode: simulation runs until this step, then freezes (raised by `advance`). */
   private stepLimit: number;
@@ -63,19 +80,10 @@ export class Game {
     this.scene.clearColor = SKY_COLOR;
     this.scene.ambientColor = new Color3(0.35, 0.4, 0.5);
 
-    const camera = new ArcRotateCamera(
-      'camera',
-      -Math.PI / 4,
-      Math.PI / 3,
-      26,
-      new Vector3(0, 0, 9),
-      this.scene,
-    );
-    camera.lowerRadiusLimit = 4;
-    camera.upperRadiusLimit = 30;
-    // Arrow keys move the player, not the camera.
-    camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
-    if (!options.test) camera.attachControl(true);
+    // Placed every frame from the pure follow-camera state; it has no input of its own.
+    this.camera = new TargetCamera('camera', Vector3.Zero(), this.scene);
+    this.camera.minZ = 0.1;
+    this.camera.maxZ = 500;
 
     const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
     ambient.intensity = 0.7;
@@ -109,23 +117,53 @@ export class Game {
     );
     this.playerMesh.material = flat('playerMat', this.scene, new Color3(1, 0.62, 0.15));
     shadows.addShadowCaster(this.playerMesh);
-    this.syncPlayerMesh(1);
 
-    // Real keyboard input is ignored in test mode; tests inject actions through the debug API.
-    if (!options.test) this.input.add(new KeyboardSource(window));
+    this.cameraState = createCameraState(spawn);
+    this.previousCamera = this.cameraState;
+    this.renderedCameraDistance = this.cameraState.distance;
+    this.syncView(1);
+
+    // Real devices are ignored in test mode; tests inject actions through the debug API.
+    if (!options.test) {
+      this.input.add(new KeyboardSource(window));
+      const canvas = engine.getRenderingCanvas();
+      if (canvas) this.input.add(new MouseCameraSource(canvas));
+    }
 
     this.scene.onBeforeRenderObservable.add(() => {
       this.renderedFrames++;
       if (options.test) {
         // One step per frame, rendered without interpolation, so screenshots are deterministic.
         if (this.steps < this.stepLimit) this.update(FIXED_STEP_MS);
-        this.syncPlayerMesh(1);
+        this.syncView(1);
         return;
       }
       const steps = this.stepper.advance(engine.getDeltaTime());
       for (let i = 0; i < steps; i++) this.update(FIXED_STEP_MS);
-      this.syncPlayerMesh(this.stepper.alpha);
+      this.syncView(this.stepper.alpha);
     });
+  }
+
+  /** Camera orbit and zoom after the latest step; `distance` is the wanted (zoom) distance. */
+  get cameraInfo(): {
+    yaw: number;
+    pitch: number;
+    distance: number;
+    renderedDistance: number;
+    position: Vec3;
+    target: Vec3;
+  } {
+    const { yaw, pitch, distance } = this.cameraState;
+    const { x, y, z } = this.camera.position;
+    const t = this.renderedTarget;
+    return {
+      yaw,
+      pitch,
+      distance,
+      renderedDistance: this.renderedCameraDistance,
+      position: { x, y, z },
+      target: { x: t.x, y: t.y, z: t.z },
+    };
   }
 
   /** Player state for tests: feet position, velocity, ground contact. */
@@ -182,19 +220,30 @@ export class Game {
     this.steps++;
     const actions = this.input.read();
     this.previousPlayer = this.player;
-    // Movement is world-relative for now (forward = +z); camera-relative in T-007.
+    this.previousCamera = this.cameraState;
+    // Orbit first, so this step's move already uses the new camera direction.
+    this.cameraState = applyCameraInput(this.cameraState, actions);
     this.player = stepPlayer(
       this.player,
-      { move: { x: actions.move.x, z: actions.move.y }, jump: actions.jump },
+      { move: cameraRelativeMove(actions.move, this.cameraState.yaw), jump: actions.jump },
       this.solids,
       deltaMs,
     );
+    this.cameraState = followTarget(this.cameraState, this.player.position, deltaMs);
   }
 
-  /** Places the mesh between the previous and current step (alpha 0..1); the box is centred. */
-  private syncPlayerMesh(alpha: number): void {
+  /** Places player mesh and camera between the previous and current step (alpha 0..1). */
+  private syncView(alpha: number): void {
     const p = lerpVec3(this.previousPlayer.position, this.player.position, alpha);
+    // The box is centred on its position.
     this.playerMesh.position.set(p.x, p.y + PLAYER_TUNING.height / 2, p.z);
+
+    const view = lerpCameraState(this.previousCamera, this.cameraState, alpha);
+    const { eye, distance } = resolveCameraEye(view, this.solids);
+    this.renderedCameraDistance = distance;
+    this.camera.position.set(eye.x, eye.y, eye.z);
+    this.renderedTarget.set(view.target.x, view.target.y, view.target.z);
+    this.camera.setTarget(this.renderedTarget);
   }
 
   /** Rendered centre of the player mesh, for tests. */

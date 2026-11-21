@@ -22,6 +22,19 @@ export interface GameDebugApi {
   player(): { position: Vec3; velocity: Vec3; grounded: boolean };
   /** Rendered centre of the player mesh (feet + half height, interpolated between steps). */
   playerMesh(): Vec3;
+  /**
+   * Follow camera after the latest step: yaw (0 looks along +z, positive turns right), pitch
+   * (positive looks down), wanted zoom `distance`, `renderedDistance` after pull-in when geometry is
+   * in the way, and the rendered camera position and look-at target.
+   */
+  camera(): {
+    yaw: number;
+    pitch: number;
+    distance: number;
+    renderedDistance: number;
+    position: Vec3;
+    target: Vec3;
+  };
   /** Test mode only: lets the frozen simulation run `steps` more steps; returns the new freeze step. */
   advance(steps: number): number;
   input: {
@@ -60,6 +73,14 @@ export function installDebugApi(version: string): GameDebugApi {
       grounded: false,
     }),
     playerMesh: () => ({ x: 0, y: 0, z: 0 }),
+    camera: () => ({
+      yaw: 0,
+      pitch: 0,
+      distance: 0,
+      renderedDistance: 0,
+      position: { x: 0, y: 0, z: 0 },
+      target: { x: 0, y: 0, z: 0 },
+    }),
     advance: () => 0,
     input: { set: () => undefined, clear: () => undefined, actions: () => NO_ACTIONS },
   };
@@ -76,6 +97,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.course = () => game.courseStats;
   api.player = () => game.playerState;
   api.playerMesh = () => game.playerMeshPosition;
+  api.camera = () => game.cameraInfo;
   api.advance = (steps) => game.advance(steps);
   api.input = {
     set: (actions) => {

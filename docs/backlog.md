@@ -133,19 +133,39 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-007 Third-person follow camera with orbit and zoom
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: the camera follows behind the player; mouse drag (or pointer lock) orbits, wheel zooms; movement is
   relative to the camera direction.
 - Acceptance criteria:
-  - [ ] `src/game/camera/followCamera.ts`: smoothed follow target, yaw/pitch from `cameraOrbit`, pitch and zoom
+  - [x] `src/game/camera/followCamera.ts`: smoothed follow target, yaw/pitch from `cameraOrbit`, pitch and zoom
         clamped, pulled in when a solid is between camera and player (ray against course AABBs, pure helper).
-  - [ ] Controller receives `move` rotated by camera yaw.
-  - [ ] Debug API: `camera()` → `{ yaw, pitch, distance }`.
+  - [x] Controller receives `move` rotated by camera yaw.
+  - [x] Debug API: `camera()` → `{ yaw, pitch, distance }`.
 - Verification: unit tests for camera-relative move rotation and occlusion pull-in; e2e: inject `cameraOrbit`,
   then `move.y = 1` → player moves along the new camera forward.
 - Notes: replaces the ArcRotateCamera; test mode keeps camera input injected only.
+- Result: pure follow camera (`CAMERA_TUNING`: 0.005 rad/px orbit, pitch −0.35…1.35, zoom 3–16 m, follow rate
+  12/s, ray-vs-AABB pull-in) drives a `TargetCamera`; yaw 0 looks along +z. `MouseCameraSource`
+  (`src/input/pointer.ts`): drag with any mouse button orbits, wheel zooms; no pointer lock (drag is enough on
+  desktop), touch is T-008. `camera()` also returns `renderedDistance`, `position` and `target`. 18 unit tests,
+  5 e2e (incl. a real-mouse drag/wheel check in normal mode). Initial JS 363 → 347 kB. Baselines regenerated
+  and reviewed (new behind-the-player view). Known limit: the pull-in padding is measured along the ray, so at
+  low pitch the camera can sit ~0.1 m above a floor.
+
+### T-020 Shadow acne on platform tops
+
+- Status: Ready
+- Milestone: M2
+- Labels: bug, art
+- Goal: the closer follow camera (T-007) shows faint banding (shadow acne) on the start island top near the player;
+  surfaces should be evenly lit.
+- Acceptance criteria:
+  - [ ] Shadow bias / normal bias tuned (or shadow frustum fitted to the course) so platform tops show no banding
+        on WebGPU and WebGL2, while the player still casts a visible contact shadow.
+- Verification: visual baselines regenerated and reviewed at full size.
+- Notes: `Game.ts` shadow generator setup; keep the map ≤ 1024 (ADR 0006).
 
 ### T-008 Touch controls: joystick, jump button, drag to orbit, pinch to zoom
 
