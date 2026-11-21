@@ -95,19 +95,37 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-006 Player in the scene with keyboard input and input actions
 
-- Status: Ready
+- Status: Done (2026-11-21)
 - Milestone: M2
 - Labels: feature
 - Goal: a placeholder player (box) runs and jumps across the stage-1 platforms with WASD/arrows + Space.
 - Acceptance criteria:
-  - [ ] `src/input/actions.ts`: `InputActions { move: {x, y}, jump: boolean, cameraOrbit: {x, y}, cameraZoom }`
+  - [x] `src/input/actions.ts`: `InputActions { move: {x, y}, jump: boolean, cameraOrbit: {x, y}, cameraZoom }`
         and an `InputRouter` that merges device sources (ADR 0006). Keyboard source in `src/input/keyboard.ts`.
-  - [ ] Player mesh mirrors controller state each step (interpolated by fixed-step alpha).
-  - [ ] Debug API: `player()` → `{ position, velocity, grounded }`; `input.set(partialActions)` /
+  - [x] Player mesh mirrors controller state each step (interpolated by fixed-step alpha).
+  - [x] Debug API: `player()` → `{ position, velocity, grounded }`; `input.set(partialActions)` /
         `input.clear()` to inject actions in test mode (real devices are ignored while injected).
 - Verification: unit test for `InputRouter` merging; e2e: inject `move` for N steps → x position increases; inject
   `jump` → y rises then returns to ground (`grounded` true).
 - Notes: movement is world-relative here; camera-relative in T-007.
+- Result: box player driven by the controller, keyboard by physical key codes (ignores shortcuts/typing);
+  debug API adds `player()`, `playerMesh()`, `input.set/clear/actions()` and `advance(n)` (unfreezes test mode
+  for n more steps; e2e helper `advanceSteps`). Injected camera deltas apply once; NaN input is zeroed.
+  12 new unit tests, 3 player e2e tests; baselines force-regenerated and reviewed. Arrow keys removed from the
+  ArcRotateCamera.
+
+### T-019 Visual baselines should catch small scene changes
+
+- Status: Ready
+- Milestone: M2
+- Labels: tech
+- Goal: replacing the floating marker cube with the player box (T-006) still passed the visual test, because
+  `maxDiffPixelRatio: 0.02` hides changes that cover under 2 % of the canvas; stale baselines go unnoticed.
+- Acceptance criteria:
+  - [ ] Tighter tolerance (e.g. `maxDiffPixels` with a per-pixel `threshold`) that still passes repeated runs on
+        WebGPU and WebGL2 on the same machine, but fails when a 1 m object moves or changes shape.
+  - [ ] `docs/qa/test-plan.md` explains the tolerance and that intended changes need `--update-snapshots=all`.
+- Verification: run the visual test 3× unchanged (passes); move the player spawn by 1 m (fails).
 
 ### T-007 Third-person follow camera with orbit and zoom
 

@@ -62,6 +62,12 @@ export async function openGame(
   return state;
 }
 
+/** Test mode: unfreezes the simulation for `steps` more steps and waits until it freezes again. */
+export async function advanceSteps(page: Page, steps: number): Promise<void> {
+  const target = await page.evaluate((n) => window.__GAME__?.advance(n) ?? -1, steps);
+  await expect.poll(() => page.evaluate(() => window.__GAME__?.stepCount())).toBe(target);
+}
+
 /** Fraction of sampled pixels that differ noticeably from the top-left pixel. */
 export function pixelVariety(png: Buffer): number {
   const image = PNG.sync.read(png);

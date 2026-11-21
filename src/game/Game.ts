@@ -13,11 +13,20 @@ import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import type { LaunchOptions } from '../core/options';
+import { InputRouter, type InputActions, type PartialActions } from '../input/actions';
+import { KeyboardSource } from '../input/keyboard';
 import { buildCourse, type BuiltCourse } from './course/buildCourse';
 import { course1 } from './course/course1';
-import { allSolids, type Course } from './course/types';
+import { allSolids, solidAabb, type Aabb, type Course, type Vec3 } from './course/types';
 import { validateCourse } from './course/validateCourse';
+import {
+  createPlayerState,
+  PLAYER_TUNING,
+  step as stepPlayer,
+  type PlayerState,
+} from './player/controller';
 import { FixedStepper } from './sim/fixedStep';
+import { lerpVec3 } from './sim/interpolate';
 
 /** Fixed simulation step (60 Hz) used in every mode, so gameplay is frame-rate independent. */
 export const FIXED_STEP_MS = 1000 / 60;
@@ -26,24 +35,30 @@ export const FIXED_STEP_MS = 1000 / 60;
 const SKY_COLOR = new Color4(0.55, 0.78, 0.97, 1);
 
 /**
- * Sky scene with the course built from data and a bobbing marker cube at the spawn point.
- * The player and follow camera replace the marker and orbit camera in later tasks.
+ * Sky scene with the course built from data and a placeholder box player driven by the kinematic
+ * controller. The follow camera replaces the orbit camera in T-007.
  */
 export class Game {
   readonly scene: Scene;
   readonly course: Course = course1;
+  readonly input = new InputRouter();
   private readonly builtCourse: BuiltCourse;
-  private readonly marker: Mesh;
-  private readonly markerBaseY: number;
+  private readonly solids: readonly Aabb[];
+  private readonly playerMesh: Mesh;
+  private player: PlayerState;
+  /** Player state before the latest step, for render interpolation. */
+  private previousPlayer: PlayerState;
   private readonly stepper = new FixedStepper(FIXED_STEP_MS);
-  private elapsedMs = 0;
+  /** Test mode: simulation runs until this step, then freezes (raised by `advance`). */
+  private stepLimit: number;
   private steps = 0;
   private renderedFrames = 0;
 
   constructor(
     private readonly engine: AbstractEngine,
-    options: LaunchOptions,
+    private readonly options: LaunchOptions,
   ) {
+    this.stepLimit = options.freezeAtStep;
     this.scene = new Scene(engine);
     this.scene.clearColor = SKY_COLOR;
     this.scene.ambientColor = new Color3(0.35, 0.4, 0.5);
@@ -58,6 +73,8 @@ export class Game {
     );
     camera.lowerRadiusLimit = 4;
     camera.upperRadiusLimit = 30;
+    // Arrow keys move the player, not the camera.
+    camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
     if (!options.test) camera.attachControl(true);
 
     const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
@@ -78,23 +95,67 @@ export class Game {
       if (errors.length > 0) throw new Error(`Invalid course: ${errors.join('; ')}`);
     }
     this.builtCourse = buildCourse(this.scene, this.course, shadows);
+    // Collision comes from the same data as the meshes.
+    this.solids = allSolids(this.course).map(solidAabb);
 
     const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
-    this.marker = CreateBox('marker', { size: 1 }, this.scene);
-    this.markerBaseY = spawn.y + 1.5;
-    this.marker.position.set(spawn.x, this.markerBaseY, spawn.z);
-    this.marker.material = flat('markerMat', this.scene, new Color3(1, 0.62, 0.15));
-    shadows.addShadowCaster(this.marker);
+    this.player = createPlayerState(spawn);
+    this.previousPlayer = this.player;
+    const { halfWidth, height } = PLAYER_TUNING;
+    this.playerMesh = CreateBox(
+      'player',
+      { width: halfWidth * 2, height, depth: halfWidth * 2 },
+      this.scene,
+    );
+    this.playerMesh.material = flat('playerMat', this.scene, new Color3(1, 0.62, 0.15));
+    shadows.addShadowCaster(this.playerMesh);
+    this.syncPlayerMesh(1);
+
+    // Real keyboard input is ignored in test mode; tests inject actions through the debug API.
+    if (!options.test) this.input.add(new KeyboardSource(window));
 
     this.scene.onBeforeRenderObservable.add(() => {
       this.renderedFrames++;
       if (options.test) {
-        if (this.steps < options.freezeAtStep) this.update(FIXED_STEP_MS);
+        // One step per frame, rendered without interpolation, so screenshots are deterministic.
+        if (this.steps < this.stepLimit) this.update(FIXED_STEP_MS);
+        this.syncPlayerMesh(1);
         return;
       }
       const steps = this.stepper.advance(engine.getDeltaTime());
       for (let i = 0; i < steps; i++) this.update(FIXED_STEP_MS);
+      this.syncPlayerMesh(this.stepper.alpha);
     });
+  }
+
+  /** Player state for tests: feet position, velocity, ground contact. */
+  get playerState(): { position: Vec3; velocity: Vec3; grounded: boolean } {
+    const { position, velocity, grounded } = this.player;
+    return { position, velocity, grounded };
+  }
+
+  /** Actions used by the latest simulation step. */
+  get currentActions(): InputActions {
+    return this.input.current;
+  }
+
+  /** Test mode only: injects actions (merged into earlier injections); real devices are ignored. */
+  injectInput(actions: PartialActions): void {
+    if (this.options.test) this.input.inject(actions);
+  }
+
+  /** Test mode only: stops injecting actions. */
+  clearInput(): void {
+    if (this.options.test) this.input.clearInjection();
+  }
+
+  /**
+   * Test mode only: lets the frozen simulation run `steps` more steps (one per frame).
+   * Returns the step count at which it freezes again.
+   */
+  advance(steps: number): number {
+    if (this.options.test && Number.isInteger(steps) && steps > 0) this.stepLimit += steps;
+    return this.stepLimit;
   }
 
   /** Number of frames rendered so far. */
@@ -119,10 +180,27 @@ export class Game {
   /** Advances the simulation by one fixed step. Depends only on accumulated time (deterministic). */
   update(deltaMs: number): void {
     this.steps++;
-    this.elapsedMs += deltaMs;
-    const t = this.elapsedMs / 1000;
-    this.marker.position.y = this.markerBaseY + Math.sin(t * 2) * 0.4;
-    this.marker.rotation.y = t * 0.8;
+    const actions = this.input.read();
+    this.previousPlayer = this.player;
+    // Movement is world-relative for now (forward = +z); camera-relative in T-007.
+    this.player = stepPlayer(
+      this.player,
+      { move: { x: actions.move.x, z: actions.move.y }, jump: actions.jump },
+      this.solids,
+      deltaMs,
+    );
+  }
+
+  /** Places the mesh between the previous and current step (alpha 0..1); the box is centred. */
+  private syncPlayerMesh(alpha: number): void {
+    const p = lerpVec3(this.previousPlayer.position, this.player.position, alpha);
+    this.playerMesh.position.set(p.x, p.y + PLAYER_TUNING.height / 2, p.z);
+  }
+
+  /** Rendered centre of the player mesh, for tests. */
+  get playerMeshPosition(): Vec3 {
+    const { x, y, z } = this.playerMesh.position;
+    return { x, y, z };
   }
 
   start(): void {
@@ -133,6 +211,7 @@ export class Game {
 
   dispose(): void {
     this.engine.stopRenderLoop();
+    this.input.dispose();
     this.builtCourse.dispose();
     this.scene.dispose();
   }
