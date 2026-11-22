@@ -8,7 +8,9 @@ import {
   vec3,
   type Course,
   type Solid,
+  type Mover,
   type Spinner,
+  type Vanisher,
   type Vec3,
 } from '../../src/game/course/types';
 import { validateCourse } from '../../src/game/course/validateCourse';
@@ -154,8 +156,68 @@ describe('checkpoints', () => {
     expect(validateCourse(courseWith([pad, aside], vec3(0, 0.5, 0)))).toEqual([]);
   });
 
-  it('course1 ends every stage on a checkpoint', () => {
-    expect(checkpoints(course1).map((s) => s.id)).toEqual(['s1-end', 's2-end']);
+  it('course1 ends every stage on exactly one checkpoint', () => {
+    for (const stage of course1.stages) {
+      expect(stage.solids.filter((s) => s.kind === 'checkpoint')).toHaveLength(1);
+    }
+    expect(checkpoints(course1)).toHaveLength(course1.stages.length);
+  });
+});
+
+describe('moving and vanishing platforms', () => {
+  const floor = box('floor', 0, 0, 0, 4); // x/z −2..2, top y 0.5
+  const ferry: Mover = {
+    id: 'ferry',
+    kind: 'mover',
+    size: vec3(2, 0.5, 2),
+    waypoints: [vec3(0, 0.25, 4), vec3(0, 0.25, 10)],
+    speed: 2,
+    mode: 'pingpong',
+  };
+  const blink: Vanisher = {
+    id: 'blink',
+    kind: 'vanisher',
+    center: vec3(0, 0.25, 14),
+    size: vec3(2, 0.5, 2),
+    onMs: 2000,
+    offMs: 1000,
+  };
+  const course = (movers: Mover[], vanishers: Vanisher[], spawn = vec3(0, 0.5, 0)): Course => ({
+    name: 'test',
+    stages: [{ name: 'stage', spawn, solids: [floor], movers, vanishers }],
+    killY: -10,
+  });
+
+  it('accepts platforms clear of solids and spawn points', () => {
+    expect(validateCourse(course([ferry], [blink]))).toEqual([]);
+  });
+
+  it('rejects a mover whose path runs through a solid or a spawn point', () => {
+    // Box y 0.25..0.75 at the start: inside the floor (top 0.5) and the spawn body (from 0.5).
+    const intoFloor = { ...ferry, waypoints: [vec3(0, 0.5, 0), vec3(0, 0.5, 10)] };
+    const errors = validateCourse(course([intoFloor], []));
+    expect(errors).toContain('The path of mover "ferry" overlaps solid "floor"');
+    expect(errors).toContain('Stage "stage" spawn point is in the way of mover "ferry"');
+  });
+
+  it('rejects platforms whose spaces collide with each other', () => {
+    const inPath = { ...blink, center: vec3(0, 0.25, 8) };
+    expect(validateCourse(course([ferry], [inPath]))).toContain(
+      'The space of mover "ferry" overlaps vanisher "blink"',
+    );
+  });
+
+  it('rejects broken platforms and duplicate ids', () => {
+    expect(validateCourse(course([{ ...ferry, waypoints: [vec3(0, 0, 4)] }], []))).toContain(
+      'Mover "ferry" needs two or more finite waypoints and a positive size and speed',
+    );
+    expect(validateCourse(course([{ ...ferry, speed: 0 }], [])).length).toBeGreaterThan(0);
+    expect(validateCourse(course([], [{ ...blink, offMs: 0 }]))).toContain(
+      'Vanisher "blink" needs a finite centre, positive size and positive on/off times',
+    );
+    expect(validateCourse(course([ferry], [{ ...blink, id: 'ferry' }]))).toContain(
+      'Duplicate id "ferry"',
+    );
   });
 });
 

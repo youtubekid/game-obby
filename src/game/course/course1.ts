@@ -3,7 +3,8 @@ import { vec3, type Course } from './types';
 /**
  * The first course. Stub for now: stage 1 is a start island and a row of stepping platforms
  * heading +z; stage 2 introduces hazards (a lava pool crossed by a stepping stone, then a low
- * spinning bar to jump over). The full five-stage layout comes in T-017.
+ * spinning bar to jump over); stage 3 adds a moving ferry and two vanishing platforms. The full
+ * five-stage layout comes in T-017.
  * Units: 1 = one metre; platform tops sit on whole or half metres to keep jumps readable.
  */
 export const course1: Course = {
@@ -67,6 +68,47 @@ export const course1: Course = {
           armLength: 2.6,
           thickness: 0.35,
           angularSpeed: 1.6,
+        },
+      ],
+    },
+    {
+      name: 'Stage 3: Moving parts',
+      spawn: vec3(0, 1.5, 48.5),
+      solids: [
+        // Ledge joined to stage 2's checkpoint island (same top height, y 1.5).
+        { id: 's3-start', kind: 'platform', center: vec3(0, 1, 48.5), size: vec3(6, 1, 3) },
+        { id: 's3-mid', kind: 'platform', center: vec3(0, 1, 65), size: vec3(4, 1, 3) },
+        { id: 's3-end', kind: 'checkpoint', center: vec3(0, 1, 79), size: vec3(6, 1, 6) },
+      ],
+      movers: [
+        {
+          // Ferry between the ledge (1.5 m gap) and the middle island (1 m gap), top flush at y 1.5.
+          id: 's3-ferry',
+          kind: 'mover',
+          size: vec3(3, 0.5, 3),
+          waypoints: [vec3(0, 1.25, 53), vec3(0, 1.25, 61)],
+          speed: 2.5,
+          mode: 'pingpong',
+        },
+      ],
+      vanishers: [
+        // Two stepping platforms that take turns: wait for the next one to come back.
+        {
+          id: 's3-blink1',
+          kind: 'vanisher',
+          center: vec3(0, 1.25, 69.5),
+          size: vec3(2.5, 0.5, 2.5),
+          onMs: 2200,
+          offMs: 1200,
+        },
+        {
+          id: 's3-blink2',
+          kind: 'vanisher',
+          center: vec3(0, 1.25, 73.5),
+          size: vec3(2.5, 0.5, 2.5),
+          onMs: 2200,
+          offMs: 1200,
+          phaseMs: 1700,
         },
       ],
     },

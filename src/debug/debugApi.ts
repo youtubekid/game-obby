@@ -51,7 +51,19 @@ export interface GameDebugApi {
    * Run progress: last checkpoint reached (-1 = none, else index in course order), deaths and
    * what caused the last one (`null` before the first).
    */
-  run(): { checkpoint: number; deaths: number; lastDeath: 'fall' | 'hazard' | 'spinner' | null };
+  run(): {
+    checkpoint: number;
+    deaths: number;
+    lastDeath: 'fall' | 'hazard' | 'spinner' | 'crush' | null;
+  };
+  /**
+   * Moving and vanishing platforms after the latest step: each mover's box centre, and whether each
+   * vanishing platform is solid (collides) and visible (drawn; flickers while about to vanish).
+   */
+  platforms(): {
+    movers: { id: string; center: Vec3 }[];
+    vanishers: { id: string; solid: boolean; visible: boolean }[];
+  };
   /**
    * Moving obstacles after the latest step: each spinner's angle (rad, from simulation time) and
    * its mesh's rendered `rotation.y` (equal in test mode, where frames render the latest step).
@@ -118,6 +130,7 @@ export function installDebugApi(version: string): GameDebugApi {
     }),
     run: () => ({ checkpoint: -1, deaths: 0, lastDeath: null }),
     obstacles: () => ({ spinners: [] }),
+    platforms: () => ({ movers: [], vanishers: [] }),
     debug: { teleport: () => undefined },
     touch: () => ({ visible: false }),
     advance: () => 0,
@@ -141,6 +154,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.avatar = () => game.avatarInfo;
   api.run = () => game.runInfo;
   api.obstacles = () => game.obstacleInfo;
+  api.platforms = () => game.platformInfo;
   api.debug = {
     teleport: (x, y, z) => {
       game.teleport({ x, y, z });

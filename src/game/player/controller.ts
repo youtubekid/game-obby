@@ -61,6 +61,12 @@ export interface PlayerState {
   readonly jumpHeld: boolean;
   /** True while rising from a jump whose height can still be cut by releasing the button. */
   readonly jumpRising: boolean;
+  /**
+   * True when the player could not be pushed clear of the solids (squeezed between a moving
+   * platform and a wall). The step leaves the player where they were; the game treats it as a
+   * death and respawns them.
+   */
+  readonly crushed: boolean;
 }
 
 export interface ControlInput {
@@ -68,6 +74,11 @@ export interface ControlInput {
   readonly move: { readonly x: number; readonly z: number };
   /** Jump button held. */
   readonly jump: boolean;
+  /**
+   * How far the platform the player stands on moved this step (m). The player is carried by it
+   * before moving under their own control (moving platforms, T-013).
+   */
+  readonly carry?: Vec3;
 }
 
 export function createPlayerState(position: Vec3): PlayerState {
@@ -79,6 +90,7 @@ export function createPlayerState(position: Vec3): PlayerState {
     jumpBufferMs: 0,
     jumpHeld: false,
     jumpRising: false,
+    crushed: false,
   };
 }
 
@@ -141,8 +153,20 @@ export function step(
   }
   vy = Math.max(vy - tuning.gravity * dt, -tuning.maxFallSpeed);
 
+  // Ride the platform underfoot, then get out of anything that moved into the player (a mover
+  // sliding sideways into them, a vanishing platform reappearing around them).
+  const c = input.carry;
+  const carried = c
+    ? vec3(state.position.x + c.x, state.position.y + c.y, state.position.z + c.z)
+    : state.position;
+  const start = pushOut(carried, solids, tuning);
+  if (overlapping(start.x, start.y, start.z, solids, tuning).length > 0) {
+    // No clear spot nearby: squeezed between solids. Stay put; the game respawns the player.
+    return { ...state, velocity: vec3(0, 0, 0), crushed: true };
+  }
+
   // Move and collide one axis at a time: vertical first so landing wins over wall contact.
-  const moved = moveAndCollide(state.position, vec3(vx, vy, vz), dt, solids, tuning);
+  const moved = moveAndCollide(start, vec3(vx, vy, vz), dt, solids, tuning);
 
   return {
     position: moved.position,
@@ -152,6 +176,7 @@ export function step(
     jumpBufferMs,
     jumpHeld: input.jump,
     jumpRising: jumpRising && moved.velocity.y > 0,
+    crushed: false,
   };
 }
 
@@ -160,8 +185,45 @@ const SKIN = 1e-4;
 /** Timer leftovers below this (ms) count as expired, so windows don't depend on float round-off. */
 const TIMER_EPS = 1e-6;
 
-// Resolution assumes the player starts each step outside all solids (true for static geometry).
-// T-013 (moving platforms) must handle starting inside a solid: push out along the smallest overlap.
+/** Most solids `pushOut` resolves per step (a player wedged between several is rare). */
+const MAX_PUSHES = 4;
+
+/**
+ * Moves feet out of any solid the player box overlaps, along the axis of smallest overlap.
+ * Static geometry never needs this (the player always ends a step outside it); moving and
+ * vanishing platforms can end up overlapping the player. Pure; returns `feet` when clear.
+ */
+export function pushOut(
+  feet: Vec3,
+  solids: readonly Aabb[],
+  tuning: PlayerTuning = PLAYER_TUNING,
+): Vec3 {
+  const hw = tuning.halfWidth;
+  let { x, y, z } = feet;
+  for (let i = 0; i < MAX_PUSHES; i++) {
+    const box = overlapping(x, y, z, solids, tuning)[0];
+    if (!box) break;
+    const options: [number, number, number][] = [
+      [0, box.max.y - y, 0], // up, onto it
+      [0, box.min.y - (y + tuning.height), 0], // down, under it
+      [box.max.x - (x - hw) + SKIN, 0, 0],
+      [box.min.x - (x + hw) - SKIN, 0, 0],
+      [0, 0, box.max.z - (z - hw) + SKIN],
+      [0, 0, box.min.z - (z + hw) - SKIN],
+    ];
+    let best = options[0];
+    for (const option of options) {
+      if (best && Math.hypot(...option) < Math.hypot(...best)) best = option;
+    }
+    if (!best) break;
+    x += best[0];
+    y += best[1];
+    z += best[2];
+  }
+  return vec3(x, y, z);
+}
+
+// Resolution assumes the player starts each step outside all solids: `step` runs `pushOut` first.
 
 function moveAndCollide(
   start: Vec3,

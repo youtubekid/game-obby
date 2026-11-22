@@ -54,12 +54,49 @@ export interface Spinner {
   readonly color?: string;
 }
 
+/**
+ * A platform travelling along `waypoints` (box centres) at a constant speed. The player standing on
+ * it is carried along. Its position depends only on simulation time (`obstacles/platforms.ts`).
+ */
+export interface Mover {
+  readonly id: string;
+  readonly kind: 'mover';
+  readonly size: Vec3;
+  /** Box centres to travel through, in order (at least two). */
+  readonly waypoints: readonly Vec3[];
+  /** Travel speed (m/s). */
+  readonly speed: number;
+  /** `pingpong` goes back and forth; `loop` returns from the last waypoint to the first. */
+  readonly mode: 'pingpong' | 'loop';
+  /** Distance along the path at time 0 (m). */
+  readonly offset?: number;
+  readonly color?: string;
+}
+
+/**
+ * A platform that is solid for `onMs`, blinks for the last part of it, then disappears for `offMs`
+ * (no collision while hidden). Its state depends only on simulation time.
+ */
+export interface Vanisher {
+  readonly id: string;
+  readonly kind: 'vanisher';
+  readonly center: Vec3;
+  readonly size: Vec3;
+  readonly onMs: number;
+  readonly offMs: number;
+  /** Time into the cycle at time 0 (ms). */
+  readonly phaseMs?: number;
+  readonly color?: string;
+}
+
 export interface Stage {
   readonly name: string;
   /** Where the player (re)spawns for this stage: feet position, standing on a solid. */
   readonly spawn: Vec3;
   readonly solids: readonly Solid[];
   readonly spinners?: readonly Spinner[];
+  readonly movers?: readonly Mover[];
+  readonly vanishers?: readonly Vanisher[];
 }
 
 export interface Course {
@@ -101,6 +138,24 @@ export function allSolids(course: Course): Solid[] {
 /** Every spinning bar in the course, in stage order. */
 export function allSpinners(course: Course): Spinner[] {
   return course.stages.flatMap((stage) => stage.spinners ?? []);
+}
+
+/** Every moving platform in the course, in stage order. */
+export function allMovers(course: Course): Mover[] {
+  return course.stages.flatMap((stage) => stage.movers ?? []);
+}
+
+/** Every vanishing platform in the course, in stage order. */
+export function allVanishers(course: Course): Vanisher[] {
+  return course.stages.flatMap((stage) => stage.vanishers ?? []);
+}
+
+/** Axis-aligned box of the given full size around a centre. */
+export function boxAround(center: Vec3, size: Vec3): Aabb {
+  return {
+    min: vec3(center.x - size.x / 2, center.y - size.y / 2, center.z - size.z / 2),
+    max: vec3(center.x + size.x / 2, center.y + size.y / 2, center.z + size.z / 2),
+  };
 }
 
 /** Checkpoint solids in course order; their position in this list is the checkpoint number. */

@@ -29,14 +29,18 @@ import {
 import { buildCourse, type BuiltCourse } from './course/buildCourse';
 import { course1 } from './course/course1';
 import {
+  allMovers,
   allSolids,
   allSpinners,
+  allVanishers,
   checkpoints,
   solidAabb,
   topCentre,
   type Aabb,
   type Course,
+  type Mover,
   type Spinner,
+  type Vanisher,
   type Vec3,
 } from './course/types';
 import { validateCourse } from './course/validateCourse';
@@ -63,6 +67,13 @@ import {
   type RunState,
 } from './run/runState';
 import { buildObstacles, type BuiltObstacles } from './obstacles/buildObstacles';
+import {
+  moverCenter,
+  platformCarry,
+  platformSolids,
+  vanisherSolid,
+  vanisherVisible,
+} from './obstacles/platforms';
 import {
   HAZARD_MARGIN,
   playerBox,
@@ -98,6 +109,8 @@ export class Game {
   private run: RunState;
   private readonly builtObstacles: BuiltObstacles;
   private readonly spinners: readonly Spinner[];
+  private readonly movers: readonly Mover[];
+  private readonly vanishers: readonly Vanisher[];
   /** Kill floors: they collide like ground (they are in `solids`) and kill on touch. */
   private readonly hazardBoxes: readonly Aabb[];
   /** Checkpoint pads (in checkpoint order) and the respawn point on each. */
@@ -155,6 +168,8 @@ export class Game {
     this.builtCourse = buildCourse(this.scene, this.course, shadows);
     this.builtObstacles = buildObstacles(this.scene, this.course, shadows);
     this.spinners = allSpinners(this.course);
+    this.movers = allMovers(this.course);
+    this.vanishers = allVanishers(this.course);
     this.hazardBoxes = allSolids(this.course)
       .filter((solid) => solid.kind === 'hazard')
       .map(solidAabb);
@@ -293,10 +308,26 @@ export class Game {
     this.previousCamera = this.cameraState;
     // Orbit first, so this step's move already uses the new camera direction.
     this.cameraState = applyCameraInput(this.cameraState, actions);
+    // Moving and vanishing platforms: ride the mover underfoot from the previous step's time to
+    // this one, and collide with the platforms where they are now.
+    const before = this.simTimeMs - deltaMs;
+    const carry = platformCarry(
+      this.player.position,
+      this.player.grounded,
+      PLAYER_TUNING.halfWidth,
+      this.movers,
+      before,
+      this.simTimeMs,
+    );
+    const dynamic = platformSolids(this.movers, this.vanishers, this.simTimeMs);
     this.player = stepPlayer(
       this.player,
-      { move: cameraRelativeMove(actions.move, this.cameraState.yaw), jump: actions.jump },
-      this.solids,
+      {
+        move: cameraRelativeMove(actions.move, this.cameraState.yaw),
+        jump: actions.jump,
+        ...(carry ? { carry } : {}),
+      },
+      dynamic.length > 0 ? [...this.solids, ...dynamic] : this.solids,
       deltaMs,
     );
     this.updateRun();
@@ -310,7 +341,7 @@ export class Game {
     const pad = standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.checkpointBoxes);
     const respawn = this.checkpointRespawns[pad];
     if (respawn) this.run = reachCheckpoint(this.run, pad, respawn);
-    const cause = this.deathCause(position);
+    const cause = this.player.crushed ? 'crush' : this.deathCause(position);
     if (cause) {
       this.run = recordDeath(this.run, cause);
       this.placePlayer(this.run.respawn);
@@ -330,6 +361,22 @@ export class Game {
   /** Simulation time after the latest step (ms); drives every moving obstacle. */
   private get simTimeMs(): number {
     return this.steps * FIXED_STEP_MS;
+  }
+
+  /** Moving and vanishing platforms after the latest step, for tests. */
+  get platformInfo(): {
+    movers: { id: string; center: Vec3 }[];
+    vanishers: { id: string; solid: boolean; visible: boolean }[];
+  } {
+    const time = this.simTimeMs;
+    return {
+      movers: this.movers.map((m) => ({ id: m.id, center: moverCenter(m, time) })),
+      vanishers: this.vanishers.map((v) => ({
+        id: v.id,
+        solid: vanisherSolid(v, time),
+        visible: vanisherVisible(v, time),
+      })),
+    };
   }
 
   /** Spinner angles after the latest step (sim) and as last rendered (mesh), for tests. */

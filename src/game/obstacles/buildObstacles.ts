@@ -4,9 +4,10 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { SPINNER_COLOR } from '../course/palette';
-import { allSpinners, type Course } from '../course/types';
+import { MOVER_COLOR, SPINNER_COLOR, VANISHER_COLOR } from '../course/palette';
+import { allMovers, allSpinners, allVanishers, type Course, type Vec3 } from '../course/types';
 import { spinnerAngle } from './motion';
+import { moverCenter, vanisherVisible } from './platforms';
 
 export interface BuiltObstacles {
   readonly meshes: readonly Mesh[];
@@ -17,7 +18,10 @@ export interface BuiltObstacles {
   dispose(): void;
 }
 
-/** Builds the moving obstacles of a course (spinning bars); one mesh each, shared materials. */
+/**
+ * Builds the dynamic parts of a course (spinning bars, moving and vanishing platforms); one mesh
+ * each, shared materials. `update` poses them all for a simulation time.
+ */
 export function buildObstacles(
   scene: Scene,
   course: Course,
@@ -51,16 +55,46 @@ export function buildObstacles(
     return { spinner, mesh };
   });
 
+  const box = (id: string, size: Vec3, color: string): Mesh => {
+    const mesh = CreateBox(id, { width: size.x, height: size.y, depth: size.z }, scene);
+    mesh.material = material(color);
+    mesh.receiveShadows = true;
+    shadows?.addShadowCaster(mesh, false);
+    return mesh;
+  };
+  const movers = allMovers(course).map((mover) => ({
+    mover,
+    mesh: box(mover.id, mover.size, mover.color ?? MOVER_COLOR),
+  }));
+  const vanishers = allVanishers(course).map((vanisher) => {
+    const mesh = box(vanisher.id, vanisher.size, vanisher.color ?? VANISHER_COLOR);
+    mesh.position.set(vanisher.center.x, vanisher.center.y, vanisher.center.z);
+    return { vanisher, mesh };
+  });
+
+  const all = [
+    ...spinners.map((s) => s.mesh),
+    ...movers.map((m) => m.mesh),
+    ...vanishers.map((v) => v.mesh),
+  ];
+
   return {
-    meshes: spinners.map((s) => s.mesh),
+    meshes: all,
     meshAngles() {
       return Object.fromEntries(spinners.map(({ spinner, mesh }) => [spinner.id, mesh.rotation.y]));
     },
     update(timeMs) {
       for (const { spinner, mesh } of spinners) mesh.rotation.y = spinnerAngle(spinner, timeMs);
+      for (const { mover, mesh } of movers) {
+        const c = moverCenter(mover, timeMs);
+        mesh.position.set(c.x, c.y, c.z);
+      }
+      for (const { vanisher, mesh } of vanishers) {
+        mesh.isVisible = vanisherVisible(vanisher, timeMs);
+      }
     },
     dispose() {
-      for (const { mesh } of spinners) {
+      for (const mesh of all) {
         shadows?.removeShadowCaster(mesh, false);
         mesh.dispose();
       }

@@ -3,8 +3,11 @@
 
 import type { Aabb, Vec3 } from '../course/types';
 
-/** Why the player last died: fell into the void, touched a kill floor, or was hit by a spinner. */
-export type DeathCause = 'fall' | 'hazard' | 'spinner';
+/**
+ * Why the player last died: fell into the void, touched a kill floor, was hit by a spinner, or was
+ * crushed between a moving platform and another solid.
+ */
+export type DeathCause = 'fall' | 'hazard' | 'spinner' | 'crush';
 
 export interface RunState {
   /** Index into the course's checkpoint list (`checkpoints(course)`); -1 = none yet (course start). */

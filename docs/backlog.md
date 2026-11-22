@@ -307,16 +307,27 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-013 Moving and vanishing platforms
 
-- Status: Ready
+- Status: Done (2026-11-22)
 - Milestone: M2
 - Labels: feature
 - Goal: platforms that move along a path carry the player; timed platforms disappear and reappear.
 - Acceptance criteria:
-  - [ ] Course kinds `mover` (waypoints, speed, ping-pong/loop) and `vanisher` (on/off durations, phase).
-  - [ ] Controller carries the player by the platform's per-step delta while grounded on it.
-  - [ ] Vanishing platform blinks before disappearing; its collision is off while hidden.
+  - [x] Course kinds `mover` (waypoints, speed, ping-pong/loop) and `vanisher` (on/off durations, phase).
+  - [x] Controller carries the player by the platform's per-step delta while grounded on it.
+  - [x] Vanishing platform blinks before disappearing; its collision is off while hidden.
 - Verification: unit tests: player standing on a mover moves with it; player falls when vanisher hides; e2e:
   teleport onto a mover → position changes while `grounded` stays true.
+- Result: `Stage.movers`/`Stage.vanishers` with pure `obstacles/platforms.ts` (positions and solidity from
+  sim time; 700 ms blink warning). `step()` takes an optional `carry` (mover delta, judged where the last
+  step left the player) and now pushes the player out of solids along the smallest overlap (new `pushOut`);
+  if no clear spot is found the player is `crushed`, which respawns them (death cause `crush`). Validation:
+  parameters, mover paths/vanisher boxes vs static solids, each other, spinner sweeps and spawn/respawn
+  points. Course 1 stage 3: yellow ferry, two alternating violet vanishers, checkpoint `s3-end`. Debug API
+  `platforms()`. Unit tests incl. carry over 60 steps, descending lift faster than gravity, ping-pong
+  turnaround, fall through a vanisher, crush against a wall, reappearing platform; 2 e2e (ferry carries a
+  grounded player at a constant offset; vanisher blinks, then drops the player). Stage 3 screenshot and
+  baselines reviewed. Not done: velocity inheritance when jumping off a mover (feel; T-017 playtest);
+  camera occlusion ignores dynamic platforms.
 
 ### T-014 Climbable walls and balance beams
 
@@ -385,6 +396,10 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
   - [ ] Budgets for draw calls and download size written into `docs/qa/test-plan.md`.
 - Verification: e2e asserts `stats().drawCalls` under the budget; manual fps check on a real phone recorded in
   `docs/qa/`.
+- Notes: the directional shadow map stretches over the whole course, so the player's shadow gets blurrier
+  as the course grows (visible since T-013); fit the shadow frustum around the player/camera (or use
+  cascades) within the 1024 map budget. Per-step allocations in `Game.update` (dynamic solids array) are
+  small but worth pooling if profiling shows GC pauses.
 
 ### T-001 Sky backdrop and final lighting for the sky-island look
 

@@ -1,12 +1,16 @@
 import { HAZARD_MARGIN, playerBox, spinnerTipTravel, touchesBox } from '../obstacles/motion';
+import { moverSweptBox, vanisherBox } from '../obstacles/platforms';
 import { PLAYER_TUNING } from '../player/controller';
 import {
   aabbOverlap,
+  allMovers,
   allSolids,
   allSpinners,
+  allVanishers,
   checkpoints,
   solidAabb,
   topCentre,
+  vec3,
   type Aabb,
   type Course,
   type Solid,
@@ -142,7 +146,91 @@ export function validateCourse(course: Course): string[] {
     }
   }
 
+  // Moving and vanishing platforms: the space they can occupy must stay clear of static solids
+  // and of every spawn/respawn point.
+  const platformSpaces: { id: string; box: Aabb }[] = [];
+  for (const mover of allMovers(course)) {
+    if (ids.has(mover.id)) errors.push(`Duplicate id "${mover.id}"`);
+    ids.add(mover.id);
+    if (
+      mover.waypoints.length < 2 ||
+      !mover.waypoints.every(isFiniteVec) ||
+      !isPositiveVec(mover.size) ||
+      !(mover.speed > 0) ||
+      !Number.isFinite(mover.speed) ||
+      !Number.isFinite(mover.offset ?? 0)
+    ) {
+      errors.push(
+        `Mover "${mover.id}" needs two or more finite waypoints and a positive size and speed`,
+      );
+      continue;
+    }
+    checkColor(errors, `Mover "${mover.id}"`, mover.color);
+    platformSpaces.push({ id: `mover "${mover.id}"`, box: moverSweptBox(mover) });
+  }
+  for (const vanisher of allVanishers(course)) {
+    if (ids.has(vanisher.id)) errors.push(`Duplicate id "${vanisher.id}"`);
+    ids.add(vanisher.id);
+    const timesOk = [vanisher.onMs, vanisher.offMs].every((t) => t > 0 && Number.isFinite(t));
+    if (
+      !isFiniteVec(vanisher.center) ||
+      !isPositiveVec(vanisher.size) ||
+      !timesOk ||
+      !Number.isFinite(vanisher.phaseMs ?? 0)
+    ) {
+      errors.push(
+        `Vanisher "${vanisher.id}" needs a finite centre, positive size and positive on/off times`,
+      );
+      continue;
+    }
+    checkColor(errors, `Vanisher "${vanisher.id}"`, vanisher.color);
+    platformSpaces.push({ id: `vanisher "${vanisher.id}"`, box: vanisherBox(vanisher) });
+  }
+  // Spinner bars sweep a disc; as a box, so platforms and bars don't run into each other.
+  const spinnerSpaces = spinners
+    .filter((s) => isFiniteVec(s.pivot) && s.armLength > 0 && s.thickness > 0)
+    .map((s) => {
+      const r = s.armLength + s.thickness / 2;
+      const h = s.thickness / 2;
+      return {
+        id: `spinner "${s.id}"`,
+        box: {
+          min: vec3(s.pivot.x - r, s.pivot.y - h, s.pivot.z - r),
+          max: vec3(s.pivot.x + r, s.pivot.y + h, s.pivot.z + r),
+        },
+      };
+    });
+  for (let i = 0; i < platformSpaces.length; i++) {
+    const a = platformSpaces[i];
+    if (!a) continue;
+    for (const b of [...platformSpaces.slice(i + 1), ...spinnerSpaces]) {
+      if (aabbOverlap(a.box, b.box)) errors.push(`The space of ${a.id} overlaps ${b.id}`);
+    }
+  }
+  for (const space of platformSpaces) {
+    for (const solid of solids) {
+      if (isFiniteVec(solid.center) && aabbOverlap(space.box, solidAabb(solid))) {
+        errors.push(`The path of ${space.id} overlaps solid "${solid.id}"`);
+      }
+    }
+    for (const spot of safeSpots) {
+      if (isFiniteVec(spot.feet) && aabbOverlap(space.box, bodyAt(spot.feet))) {
+        errors.push(`${spot.name} is in the way of ${space.id}`);
+      }
+    }
+  }
+
   return errors;
+}
+
+function isPositiveVec(v: Vec3): boolean {
+  return isFiniteVec(v) && v.x > 0 && v.y > 0 && v.z > 0;
+}
+
+function checkColor(errors: string[], what: string, color: string | undefined): void {
+  if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color)) {
+    errors.push(`${what} has an invalid colour "${color}"`);
+  }
 }
 
 /** The player's collision box when standing at `feet`. */

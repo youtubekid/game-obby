@@ -13,6 +13,10 @@ export const KIND_COLORS: Record<SolidKind, string> = {
 
 /** Default colour of spinning bars. */
 export const SPINNER_COLOR = '#e0202f';
+/** Moving platforms: warm yellow, so "this one moves" reads at a glance. */
+export const MOVER_COLOR = '#f2b705';
+/** Vanishing platforms: violet, unlike any static ground. */
+export const VANISHER_COLOR = '#7b4dff';
 
 /** The colour a solid is drawn with (lower-case `#rrggbb`). */
 export function solidColor(solid: Solid): string {
