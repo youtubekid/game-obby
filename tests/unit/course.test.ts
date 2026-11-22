@@ -3,6 +3,7 @@ import { course1 } from '../../src/game/course/course1';
 import {
   aabbOverlap,
   checkpoints,
+  finishSolid,
   solidAabb,
   topCentre,
   vec3,
@@ -164,11 +165,42 @@ describe('checkpoints', () => {
     );
   });
 
-  it('course1 ends every stage on exactly one checkpoint', () => {
-    for (const stage of course1.stages) {
+  it('course1 ends every stage on one checkpoint and the last on the finish', () => {
+    const stages = course1.stages;
+    stages.slice(0, -1).forEach((stage) => {
       expect(stage.solids.filter((s) => s.kind === 'checkpoint')).toHaveLength(1);
-    }
-    expect(checkpoints(course1)).toHaveLength(course1.stages.length);
+    });
+    expect(stages.at(-1)?.solids.filter((s) => s.kind === 'finish')).toHaveLength(1);
+    // Checkpoint i completes stage i; the finish completes the last one.
+    expect(checkpoints(course1)).toHaveLength(stages.length - 1);
+    expect(finishSolid(course1)?.id).toBe('s4-finish');
+  });
+});
+
+describe('finish', () => {
+  const finishPad = (id: string, x: number): Solid => ({ ...box(id, x, 0, 0), kind: 'finish' });
+
+  it('allows at most one checkpoint per stage (each completes its stage)', () => {
+    const cp = (id: string, x: number): Solid => ({ ...box(id, x, 0, 0), kind: 'checkpoint' });
+    expect(validateCourse(courseWith([box('a', 0, 0, 0), cp('c1', 4), cp('c2', 8)]))).toContain(
+      'Stage "stage" has more than one checkpoint',
+    );
+  });
+
+  it('allows at most one finish, in the last stage', () => {
+    expect(validateCourse(courseWith([box('a', 0, 0, 0), finishPad('f', 4)]))).toEqual([]);
+    expect(
+      validateCourse(courseWith([box('a', 0, 0, 0), finishPad('f1', 4), finishPad('f2', 8)])),
+    ).toContain('Course has 2 finishes; it needs at most one');
+    const early: Course = {
+      name: 'early finish',
+      stages: [
+        { name: 'one', spawn: vec3(0, 0.5, 0), solids: [box('a', 0, 0, 0), finishPad('f', 4)] },
+        { name: 'two', spawn: vec3(10, 0.5, 0), solids: [box('b', 10, 0, 0)] },
+      ],
+      killY: -10,
+    };
+    expect(validateCourse(early)).toContain('The finish must be in the last stage');
   });
 });
 

@@ -26,7 +26,7 @@ test.describe('hazards', () => {
     await teleport(page, 2, 1, 26);
     await advanceSteps(page, 2);
     const { run, player } = await state(page);
-    expect(run).toEqual({ checkpoint: -1, deaths: 1, lastDeath: 'hazard' });
+    expect(run).toMatchObject({ checkpoint: -1, deaths: 1, lastDeath: 'hazard' });
     // Back at the course start (no checkpoint reached yet).
     expect(player.position.z).toBeCloseTo(0, 5);
   });
@@ -46,7 +46,7 @@ test.describe('hazards', () => {
     await teleport(page, 0, 1, 35);
     await advanceSteps(page, 1);
     const { run, player } = await state(page);
-    expect(run).toEqual({ checkpoint: 0, deaths: 1, lastDeath: 'spinner' });
+    expect(run).toMatchObject({ checkpoint: 0, deaths: 1, lastDeath: 'spinner' });
     expect(player.position.z).toBeCloseTo(19, 5);
   });
 

@@ -22,8 +22,9 @@ export interface Aabb {
  *   player at the last checkpoint.
  * - `climbable`: a truss wall. It collides like any wall; pushing into one of its sides climbs it,
  *   and reaching the top steps onto it. Drawn striped.
+ * - `finish`: the end of the course (at most one, in the last stage). Standing on it ends the run.
  */
-export type SolidKind = 'platform' | 'checkpoint' | 'hazard' | 'climbable';
+export type SolidKind = 'platform' | 'checkpoint' | 'hazard' | 'climbable' | 'finish';
 
 /** A static box in the course, described by its centre and full size. */
 export interface Solid {
@@ -163,6 +164,11 @@ export function boxAround(center: Vec3, size: Vec3): Aabb {
 /** Checkpoint solids in course order; their position in this list is the checkpoint number. */
 export function checkpoints(course: Course): Solid[] {
   return allSolids(course).filter((solid) => solid.kind === 'checkpoint');
+}
+
+/** The course's finish solid, if it has one (validation allows at most one). */
+export function finishSolid(course: Course): Solid | undefined {
+  return allSolids(course).find((solid) => solid.kind === 'finish');
 }
 
 /** Where the player stands after respawning on a solid: the centre of its top face. */

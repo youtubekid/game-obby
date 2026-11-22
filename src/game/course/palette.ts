@@ -11,6 +11,8 @@ export const KIND_COLORS: Record<SolidKind, string> = {
   hazard: '#e83c00',
   // GDD: climbable surfaces are striped. This is the dark stripe; CLIMB_STRIPE_COLOR the light one.
   climbable: '#8a5a2b',
+  // The finish pad: gold, unlike any other surface.
+  finish: '#ffb300',
 };
 
 /** Light stripe of climbable walls, alternating with the kind colour every `CLIMB_STRIPE_HEIGHT`. */

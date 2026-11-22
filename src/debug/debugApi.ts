@@ -52,12 +52,18 @@ export interface GameDebugApi {
   };
   /**
    * Run progress: last checkpoint reached (-1 = none, else index in course order), deaths and
-   * what caused the last one (`null` before the first).
+   * what caused the last one (`null` before the first); run time in ms of simulation time (starts
+   * with the first move/jump input, frozen at the finish); cumulative `splits` per stage (null =
+   * not completed); `finished`; and whether the results screen is showing.
    */
   run(): {
     checkpoint: number;
     deaths: number;
     lastDeath: 'fall' | 'hazard' | 'spinner' | 'crush' | null;
+    elapsedMs: number;
+    splits: (number | null)[];
+    finished: boolean;
+    resultsVisible: boolean;
   };
   /**
    * Moving and vanishing platforms after the latest step: each mover's box centre, and whether each
@@ -132,7 +138,15 @@ export function installDebugApi(version: string): GameDebugApi {
       pose: { leftArm: 0, rightArm: 0, leftLeg: 0, rightLeg: 0 },
       meshes: 0,
     }),
-    run: () => ({ checkpoint: -1, deaths: 0, lastDeath: null }),
+    run: () => ({
+      checkpoint: -1,
+      deaths: 0,
+      lastDeath: null,
+      elapsedMs: 0,
+      splits: [],
+      finished: false,
+      resultsVisible: false,
+    }),
     obstacles: () => ({ spinners: [] }),
     platforms: () => ({ movers: [], vanishers: [] }),
     debug: { teleport: () => undefined },

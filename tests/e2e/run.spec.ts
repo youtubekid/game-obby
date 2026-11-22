@@ -25,14 +25,14 @@ test.describe('checkpoints and respawn', () => {
   });
 
   test('starts with no checkpoint and no deaths', async ({ page }) => {
-    expect((await state(page)).run).toEqual({ checkpoint: -1, deaths: 0, lastDeath: null });
+    expect((await state(page)).run).toMatchObject({ checkpoint: -1, deaths: 0, lastDeath: null });
   });
 
   test('falling into the void respawns at the start and counts a death', async ({ page }) => {
     await teleport(page, 10, 3, 0);
     await advanceSteps(page, FALL_STEPS);
     const { run, player } = await state(page);
-    expect(run).toEqual({ checkpoint: -1, deaths: 1, lastDeath: 'fall' });
+    expect(run).toMatchObject({ checkpoint: -1, deaths: 1, lastDeath: 'fall' });
     expect(player.grounded).toBe(true);
     expect(player.position.x).toBeCloseTo(0, 5);
     expect(player.position.y).toBeCloseTo(0, 5);
@@ -42,12 +42,12 @@ test.describe('checkpoints and respawn', () => {
   test('standing on the checkpoint saves it; the next fall respawns on it', async ({ page }) => {
     await teleport(page, 1.5, 1, 18);
     await advanceSteps(page, 3);
-    expect((await state(page)).run).toEqual({ checkpoint: 0, deaths: 0, lastDeath: null });
+    expect((await state(page)).run).toMatchObject({ checkpoint: 0, deaths: 0, lastDeath: null });
 
     await teleport(page, 10, 3, 19);
     await advanceSteps(page, FALL_STEPS);
     const { run, player } = await state(page);
-    expect(run).toEqual({ checkpoint: 0, deaths: 1, lastDeath: 'fall' });
+    expect(run).toMatchObject({ checkpoint: 0, deaths: 1, lastDeath: 'fall' });
     expect(player.grounded).toBe(true);
     // Respawn is the checkpoint's top centre, not where the player first touched it.
     expect(player.position.x).toBeCloseTo(0, 5);

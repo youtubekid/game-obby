@@ -217,6 +217,29 @@ test('portrait widens the view; landscape keeps the default FOV', async ({ page 
   expect(wide?.horizontalFov).toBeGreaterThan(tall?.horizontalFov ?? Infinity);
 });
 
+test('HUD and results fit the phone screen, and "Play again" works by touch', async ({ page }) => {
+  await openGame(page, 'webgl2', { freeze: 10, settleFrames: 2, query: '&touch=1' });
+  const portrait = page.viewportSize();
+  if (!portrait) throw new Error('No viewport');
+  await page.evaluate(() => window.__GAME__?.debug.teleport(0, 6, 100));
+  await advanceSteps(page, 3);
+  for (const size of [portrait, { width: portrait.height, height: portrait.width }]) {
+    await page.setViewportSize(size);
+    for (const selector of ['.hud-bar', '#results', '.results-again']) {
+      const box = await page.locator(selector).boundingBox();
+      if (!box) throw new Error(`${selector} not visible`);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(size.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(size.height);
+    }
+  }
+  await page.setViewportSize(portrait);
+  await page.locator('.results-again').tap();
+  await advanceSteps(page, 2);
+  expect(await page.evaluate(() => window.__GAME__?.run().resultsVisible)).toBe(false);
+});
+
 test('overlay appears only after the first touch', async ({ page }) => {
   // Normal mode (no ?touch=1): the overlay starts hidden.
   await page.goto('./?renderer=webgl2');

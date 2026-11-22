@@ -9,7 +9,7 @@ const player = (page: Page) =>
   });
 
 // Course 1 stage 4: ledge top y 1.5 up to z 85; striped wall z 85..88, top y 6; a 0.5 m beam on to
-// the checkpoint island at z 97..103 (top y 6). The camera starts looking along +z, so move.y = 1
+// the finish island at z 97..103 (top y 6). The camera starts looking along +z, so move.y = 1
 // pushes into the wall.
 test.describe('climbing and balance beams', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -39,7 +39,7 @@ test.describe('climbing and balance beams', () => {
     expect(onTop.position.z).toBeGreaterThan(85);
   });
 
-  test('the beam is walkable all the way to the checkpoint', async ({ page }) => {
+  test('the beam is walkable all the way to the finish', async ({ page }) => {
     await page.evaluate(() => window.__GAME__?.debug.teleport(0, 6, 87));
     await page.evaluate(() => window.__GAME__?.input.set({ move: { x: 0, y: 1 } }));
     // 10 m along the beam at 7 m/s.
@@ -47,6 +47,6 @@ test.describe('climbing and balance beams', () => {
     const p = await player(page);
     expect(p.grounded).toBe(true);
     expect(p.position.y).toBeCloseTo(6, 5);
-    expect(await page.evaluate(() => window.__GAME__?.run().checkpoint)).toBe(3);
+    expect(await page.evaluate(() => window.__GAME__?.run().finished)).toBe(true);
   });
 });

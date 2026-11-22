@@ -15,6 +15,7 @@ import { GamepadSource } from '../input/gamepad';
 import { KeyboardSource } from '../input/keyboard';
 import { MouseCameraSource } from '../input/pointer';
 import { TouchControls } from '../input/touch';
+import { Hud } from '../ui/hud';
 import {
   applyCameraInput,
   cameraRelativeMove,
@@ -34,6 +35,7 @@ import {
   allSpinners,
   allVanishers,
   checkpoints,
+  finishSolid,
   solidAabb,
   topCentre,
   type Aabb,
@@ -60,10 +62,14 @@ import {
 import { createAvatar, type Avatar } from './player/avatar';
 import {
   createRunState,
+  elapsedMs,
+  finishRun,
   hasFallen,
   reachCheckpoint,
   recordDeath,
+  stageTimes,
   standingOn,
+  startTimer,
   type DeathCause,
   type RunState,
 } from './run/runState';
@@ -88,6 +94,9 @@ import { lerpVec3 } from './sim/interpolate';
 /** Fixed simulation step (60 Hz) used in every mode, so gameplay is frame-rate independent. */
 export const FIXED_STEP_MS = 1000 / 60;
 
+/** The results screen ignores jump presses this soon after the finish, so a held jump can't skip it. */
+const RESULTS_INPUT_DELAY_MS = 800;
+
 /** Sky-blue background of the sky-island setting (see docs/game-design.md). */
 const SKY_COLOR = new Color4(0.55, 0.78, 0.97, 1);
 
@@ -109,6 +118,12 @@ export class Game {
   private readonly touch: TouchControls | null = null;
   private player: PlayerState;
   private run: RunState;
+  private readonly spawn: Vec3;
+  /** The finish pad (empty if the course has none). */
+  private readonly finishBox: readonly Aabb[];
+  private readonly hud: Hud;
+  /** Jump state of the previous step, to see fresh presses on the results screen. */
+  private jumpWasHeld = false;
   private readonly builtObstacles: BuiltObstacles;
   private readonly spinners: readonly Spinner[];
   private readonly movers: readonly Mover[];
@@ -118,6 +133,8 @@ export class Game {
   /** Checkpoint pads (in checkpoint order) and the respawn point on each. */
   private readonly checkpointBoxes: readonly Aabb[];
   private readonly checkpointRespawns: readonly Vec3[];
+  /** Stage index each checkpoint belongs to. */
+  private readonly checkpointStages: readonly number[];
   /** Player state before the latest step, for render interpolation. */
   private previousPlayer: PlayerState;
   private cameraState: CameraState;
@@ -182,9 +199,19 @@ export class Game {
     }));
 
     const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
-    this.run = createRunState(spawn);
+    this.spawn = spawn;
+    this.run = createRunState(spawn, this.course.stages.length);
+    const finish = finishSolid(this.course);
+    this.finishBox = finish ? [solidAabb(finish)] : [];
+    this.hud = new Hud(document, () => {
+      this.playAgain();
+    });
     const pads = checkpoints(this.course);
     this.checkpointBoxes = pads.map(solidAabb);
+    // Each checkpoint completes the stage it belongs to (its split goes there).
+    this.checkpointStages = pads.map((pad) =>
+      this.course.stages.findIndex((stage) => stage.solids.includes(pad)),
+    );
     this.checkpointRespawns = pads.map(topCentre);
     this.player = createPlayerState(spawn);
     this.previousPlayer = this.player;
@@ -308,7 +335,25 @@ export class Game {
   /** Advances the simulation by one fixed step. Depends only on accumulated time (deterministic). */
   update(deltaMs: number): void {
     this.steps++;
-    const actions = this.input.read();
+    const input = this.input.read();
+    const jumpPressed = input.jump && !this.jumpWasHeld;
+    this.jumpWasHeld = input.jump;
+    // After the finish the player stands still behind the results screen; a fresh jump press
+    // (Space, gamepad A, touch Jump), once the screen has been up for a moment, plays again.
+    const finishedAt = this.run.finishedAtMs;
+    if (finishedAt !== null) {
+      if (jumpPressed && this.simTimeMs - finishedAt >= RESULTS_INPUT_DELAY_MS) {
+        this.playAgain();
+        // The restart press is still held: don't let it count as a jump (or start the clock).
+        this.player = { ...this.player, jumpHeld: true };
+        this.previousPlayer = this.player;
+        return;
+      }
+    } else if (jumpPressed || input.move.x !== 0 || input.move.y !== 0) {
+      // The timer starts with the first move or fresh jump press, not at spawn.
+      this.run = startTimer(this.run, this.simTimeMs - deltaMs);
+    }
+    const actions = finishedAt === null ? input : { ...input, move: { x: 0, y: 0 }, jump: false };
     this.previousPlayer = this.player;
     this.previousCamera = this.cameraState;
     // Orbit first, so this step's move already uses the new camera direction.
@@ -340,16 +385,36 @@ export class Game {
     this.animation = stepAnimation(this.animation, this.player, deltaMs);
   }
 
-  /** Saves checkpoints the player stands on; respawns after a fall, a kill floor or a spinner. */
+  /**
+   * Saves checkpoints the player stands on, ends the run on the finish, and respawns after a fall,
+   * a kill floor, a spinner or a crush.
+   */
   private updateRun(): void {
     const { position, grounded } = this.player;
+    const now = this.simTimeMs;
+    // Nothing counts once the run is over (the player waits behind the results screen).
+    if (this.run.finishedAtMs !== null) return;
     const pad = standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.checkpointBoxes);
     const respawn = this.checkpointRespawns[pad];
-    if (respawn) this.run = reachCheckpoint(this.run, pad, respawn);
+    const stage = this.checkpointStages[pad];
+    if (respawn && stage !== undefined) {
+      this.run = reachCheckpoint(this.run, pad, respawn, now, stage);
+    }
+    // A death wins over reaching the finish in the same step.
     const cause = this.player.crushed ? 'crush' : this.deathCause(position);
     if (cause) {
       this.run = recordDeath(this.run, cause);
       this.placePlayer(this.run.respawn);
+      return;
+    }
+    if (standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.finishBox) === 0) {
+      this.run = finishRun(this.run, now);
+      this.hud.showResults({
+        totalMs: elapsedMs(this.run, now),
+        deaths: this.run.deaths,
+        stageTimes: stageTimes(this.run.splits),
+        stageNames: this.course.stages.map((s) => s.name),
+      });
     }
   }
 
@@ -415,16 +480,36 @@ export class Game {
   }
 
   /** Run progress: last checkpoint (-1 = none), deaths and the cause of the last one. */
-  get runInfo(): { checkpoint: number; deaths: number; lastDeath: DeathCause | null } {
+  get runInfo(): {
+    checkpoint: number;
+    deaths: number;
+    lastDeath: DeathCause | null;
+    elapsedMs: number;
+    splits: (number | null)[];
+    finished: boolean;
+    resultsVisible: boolean;
+  } {
     return {
       checkpoint: this.run.checkpoint,
       deaths: this.run.deaths,
       lastDeath: this.run.lastDeath,
+      elapsedMs: elapsedMs(this.run, this.simTimeMs),
+      splits: [...this.run.splits],
+      finished: this.run.finishedAtMs !== null,
+      resultsVisible: this.hud.resultsVisible,
     };
+  }
+
+  /** Starts a new run from the course start: timer, splits, deaths and checkpoints reset. */
+  playAgain(): void {
+    this.run = createRunState(this.spawn, this.course.stages.length);
+    this.placePlayer(this.spawn);
+    this.hud.hideResults();
   }
 
   /** Places the avatar, obstacles and camera between the previous and current step (alpha 0..1). */
   private syncView(alpha: number): void {
+    this.hud.update(elapsedMs(this.run, this.simTimeMs), this.run.deaths);
     // Obstacles render at the same in-between time as the player.
     this.builtObstacles.update(Math.max(0, this.steps - 1 + alpha) * FIXED_STEP_MS);
     const p = lerpVec3(this.previousPlayer.position, this.player.position, alpha);
@@ -468,6 +553,7 @@ export class Game {
     this.input.dispose();
     this.avatar.dispose();
     this.builtObstacles.dispose();
+    this.hud.dispose();
     this.builtCourse.dispose();
     this.scene.dispose();
   }

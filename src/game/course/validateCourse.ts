@@ -34,6 +34,18 @@ export function validateCourse(course: Course): string[] {
 
   if (course.stages.length === 0) errors.push('Course has no stages');
 
+  // At most one finish, at the end: in the last stage. (A course without one simply never ends;
+  // shipped courses are checked to have one in their own tests.)
+  const finishes = solids.filter((solid) => solid.kind === 'finish');
+  if (finishes.length > 1) {
+    errors.push(`Course has ${finishes.length} finishes; it needs at most one`);
+  } else if (
+    finishes.length === 1 &&
+    !course.stages.at(-1)?.solids.some((solid) => solid.kind === 'finish')
+  ) {
+    errors.push('The finish must be in the last stage');
+  }
+
   if (!Number.isFinite(course.killY)) {
     errors.push('Course has no valid killY');
   } else {
@@ -70,6 +82,10 @@ export function validateCourse(course: Course): string[] {
 
   for (const stage of course.stages) {
     if (stage.solids.length === 0) errors.push(`Stage "${stage.name}" has no solids`);
+    // A checkpoint completes its stage (one split per stage), so a stage has at most one.
+    if (stage.solids.filter((s) => s.kind === 'checkpoint').length > 1) {
+      errors.push(`Stage "${stage.name}" has more than one checkpoint`);
+    }
     if (!isFiniteVec(stage.spawn)) {
       errors.push(`Stage "${stage.name}" has no valid spawn point`);
     } else if (!stage.solids.some((solid) => supports(solid, stage.spawn))) {

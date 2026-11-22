@@ -128,7 +128,8 @@ export const course1: Course = {
           size: vec3(0.5, 1, 9),
           color: '#c9a36b',
         },
-        { id: 's4-end', kind: 'checkpoint', center: vec3(0, 5.5, 100), size: vec3(6, 1, 6) },
+        // The finish: standing on it ends the run.
+        { id: 's4-finish', kind: 'finish', center: vec3(0, 5.5, 100), size: vec3(6, 1, 6) },
       ],
     },
   ],

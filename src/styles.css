@@ -29,6 +29,114 @@ body {
   pointer-events: none;
 }
 
+/* HUD and results screen (src/ui/hud.ts). The bar never takes input; the results panel does. */
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+  /* Above the touch controls, so the results panel covers them (#hud is its own stacking context). */
+  z-index: 2;
+}
+
+.hud-bar {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-time {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.hud-deaths {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.results {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 20px 22px;
+  border-radius: 16px;
+  background: rgb(18 28 56 / 0.88);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.results[hidden] {
+  display: none;
+}
+
+.results h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.results-total {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-splits {
+  width: 100%;
+  margin-bottom: 16px;
+  border-collapse: collapse;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-splits th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.results-splits td {
+  text-align: right;
+}
+
+.results-splits th,
+.results-splits td {
+  padding: 4px 2px;
+  border-top: 1px solid rgb(255 255 255 / 0.15);
+}
+
+.results-again {
+  min-width: 160px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 24px;
+  background: #ffb300;
+  color: #1b1b1b;
+  font:
+    700 18px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.results-again:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
 /* Touch controls (src/input/touch.ts). Only the controls take pointer events; the rest of the
    screen goes to the canvas for orbit and pinch. Safe-area insets keep them clear of notches. */
 #touch-ui {

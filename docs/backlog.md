@@ -356,16 +356,27 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-015 Run timer, stage splits, finish and results screen
 
-- Status: Ready
+- Status: Done (2026-11-22)
 - Milestone: M2
 - Labels: feature
 - Goal: a run has a start, a running timer and death counter in the HUD, and ends at the finish with a results
   screen (total time, deaths, splits) and a "play again" button.
 - Acceptance criteria:
-  - [ ] `runState` tracks start time, split per checkpoint, finish; time comes from simulation steps (deterministic).
-  - [ ] HUD (DOM overlay) fits phone portrait/landscape; results screen works with touch, mouse and gamepad.
-  - [ ] Debug API: `run()` adds `{ elapsedMs, splits, finished }`.
+  - [x] `runState` tracks start time, split per checkpoint, finish; time comes from simulation steps (deterministic).
+  - [x] HUD (DOM overlay) fits phone portrait/landscape; results screen works with touch, mouse and gamepad.
+  - [x] Debug API: `run()` adds `{ elapsedMs, splits, finished }`.
 - Verification: unit tests for timer/splits; e2e: teleport onto the finish → `finished === true`, results visible.
+- Result: new `finish` solid kind (at most one, in the last stage; course 1's last island is the gold finish).
+  The timer starts on the first move or fresh jump press (not at spawn) and freezes at the finish; splits
+  are cumulative per stage (a checkpoint completes the stage it is in; at most one per stage, validated).
+  `src/ui/hud.ts`: timer + deaths bar and a results dialog (total, deaths, per-stage times, "Play again"),
+  safe-area aware, above the touch controls. Play again: button (mouse/touch/keyboard focus) or a fresh
+  jump press after 800 ms (Space, gamepad A, touch Jump); the restart press does not jump or start the
+  clock. After the finish the player stands still and nothing counts (no deaths behind the results).
+  `run()` also returns `resultsVisible`. Unit tests (timer, splits, stage mapping, skipped stages,
+  formatting, finish/checkpoint rules); 6 e2e (incl. jump restart and no deaths after the finish) and a
+  mobile layout/tap test. Results screenshot and the HUD in the baselines reviewed. The HUD font is the
+  system font, so Linux CI baselines (not committed yet) will differ from Windows.
 
 ### T-016 Save best times and resume from last checkpoint
 
