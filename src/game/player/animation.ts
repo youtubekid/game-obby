@@ -68,7 +68,13 @@ export interface MotionSample {
   /** Player velocity (m/s). */
   readonly velocity: Vec3;
   readonly grounded: boolean;
+  /** Climbing a wall: arms reach up and alternate, legs step. */
+  readonly climbing?: boolean;
 }
+
+/** Arm reach while climbing (rad, forward-up) and the alternating swing around it. */
+const CLIMB_ARMS = 2.6;
+const CLIMB_SWING = 0.45;
 
 /** Pose the limbs aim for, from the current motion and run phase (no blending). */
 export function targetPose(
@@ -76,6 +82,15 @@ export function targetPose(
   phase: number,
   tuning: AnimationTuning = ANIMATION_TUNING,
 ): Pose {
+  if (motion.climbing) {
+    const swing = CLIMB_SWING * Math.sin(phase);
+    return {
+      leftArm: CLIMB_ARMS + swing,
+      rightArm: CLIMB_ARMS - swing,
+      leftLeg: 0.5 * swing + 0.3,
+      rightLeg: -0.5 * swing + 0.3,
+    };
+  }
   if (!motion.grounded) {
     const arms = motion.velocity.y > 0 ? tuning.jumpArms : tuning.fallArms;
     return { leftArm: arms, rightArm: arms, leftLeg: tuning.airLegs, rightLeg: -tuning.airLegs };
@@ -104,8 +119,13 @@ export function stepAnimation(
   const dt = dtMs / 1000;
   const speed = horizontalSpeed(motion.velocity);
   const moving = motion.grounded && speed >= tuning.idleSpeed;
-  // Reset the cycle when stopping, so the next run always starts from a neutral stride.
-  const phase = moving ? (state.phase + speed * dt * tuning.phasePerMetre) % (2 * Math.PI) : 0;
+  // Climbing advances the cycle with height gained, running with distance run. Reset the cycle
+  // otherwise, so the next run always starts from a neutral stride.
+  const travelled = motion.climbing ? Math.abs(motion.velocity.y) : moving ? speed : 0;
+  const phase =
+    motion.climbing || moving
+      ? (state.phase + travelled * dt * tuning.phasePerMetre) % (2 * Math.PI)
+      : 0;
   const target = targetPose(motion, phase, tuning);
   const k = 1 - Math.exp(-tuning.blendRate * dt);
   const blend = (a: number, b: number): number => a + (b - a) * k;

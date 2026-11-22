@@ -156,6 +156,14 @@ describe('checkpoints', () => {
     expect(validateCourse(courseWith([pad, aside], vec3(0, 0.5, 0)))).toEqual([]);
   });
 
+  it('course1 has a climbable wall and a narrow balance beam', () => {
+    const solids = course1.stages.flatMap((s) => s.solids);
+    expect(solids.some((s) => s.kind === 'climbable')).toBe(true);
+    expect(solids.some((s) => s.kind === 'platform' && Math.min(s.size.x, s.size.z) <= 0.6)).toBe(
+      true,
+    );
+  });
+
   it('course1 ends every stage on exactly one checkpoint', () => {
     for (const stage of course1.stages) {
       expect(stage.solids.filter((s) => s.kind === 'checkpoint')).toHaveLength(1);

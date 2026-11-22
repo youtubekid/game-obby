@@ -3,8 +3,8 @@ import { vec3, type Course } from './types';
 /**
  * The first course. Stub for now: stage 1 is a start island and a row of stepping platforms
  * heading +z; stage 2 introduces hazards (a lava pool crossed by a stepping stone, then a low
- * spinning bar to jump over); stage 3 adds a moving ferry and two vanishing platforms. The full
- * five-stage layout comes in T-017.
+ * spinning bar to jump over); stage 3 adds a moving ferry and two vanishing platforms; stage 4 a
+ * climbable wall and a balance beam. The full five-stage layout comes in T-017.
  * Units: 1 = one metre; platform tops sit on whole or half metres to keep jumps readable.
  */
 export const course1: Course = {
@@ -110,6 +110,25 @@ export const course1: Course = {
           offMs: 1200,
           phaseMs: 1700,
         },
+      ],
+    },
+    {
+      name: 'Stage 4: Up and across',
+      spawn: vec3(0, 1.5, 83.5),
+      solids: [
+        // Ledge joined to stage 3's checkpoint island (top y 1.5).
+        { id: 's4-start', kind: 'platform', center: vec3(0, 1, 83.5), size: vec3(6, 1, 3) },
+        // Striped truss wall rising 4.5 m above the ledge: push into it to climb.
+        { id: 's4-wall', kind: 'climbable', center: vec3(0, 3.5, 86.5), size: vec3(6, 5, 3) },
+        // Balance beam (0.5 m wide) from the top of the wall to the checkpoint.
+        {
+          id: 's4-beam',
+          kind: 'platform',
+          center: vec3(0, 5.5, 92.5),
+          size: vec3(0.5, 1, 9),
+          color: '#c9a36b',
+        },
+        { id: 's4-end', kind: 'checkpoint', center: vec3(0, 5.5, 100), size: vec3(6, 1, 6) },
       ],
     },
   ],

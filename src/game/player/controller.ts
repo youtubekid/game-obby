@@ -30,6 +30,16 @@ export interface PlayerTuning {
   readonly halfWidth: number;
   /** Height of the player's collision box (m). */
   readonly height: number;
+  /** Upward speed while climbing a climbable wall (m/s). */
+  readonly climbSpeed: number;
+  /** How close (m) the player must be to a climbable face to grab it. */
+  readonly climbReach: number;
+  /** Climbing within this distance (m) of the wall's top steps onto it. */
+  readonly climbTopOut: number;
+  /** Speed away from the wall when jumping off it (m/s). */
+  readonly wallKickSpeed: number;
+  /** Upward speed of a wall jump, as a fraction of a normal jump's. */
+  readonly wallKickUp: number;
 }
 
 /** Defaults tuned for a readable obby feel; adjust here, never inline. */
@@ -46,7 +56,21 @@ export const PLAYER_TUNING: PlayerTuning = {
   jumpBufferMs: 100,
   halfWidth: 0.35,
   height: 1.8,
+  climbSpeed: 3.5,
+  climbReach: 0.05,
+  climbTopOut: 0.3,
+  wallKickSpeed: 5,
+  wallKickUp: 0.8,
 };
+
+/**
+ * A collision box. `climbable` boxes (truss walls) can be climbed by pushing into a side face.
+ * Plain `Aabb`s work too: they are never climbable.
+ */
+export type CollisionBox = Aabb & { readonly climbable?: boolean };
+
+/** Minimum share of the move input pointing into a climbable face to keep climbing (0..1). */
+const CLIMB_PUSH = 0.3;
 
 export interface PlayerState {
   /** Feet position: centre of the bottom face of the collision box. */
@@ -67,6 +91,8 @@ export interface PlayerState {
    * death and respawns them.
    */
   readonly crushed: boolean;
+  /** True while climbing a climbable wall (gravity off, moving up). */
+  readonly climbing: boolean;
 }
 
 export interface ControlInput {
@@ -91,6 +117,7 @@ export function createPlayerState(position: Vec3): PlayerState {
     jumpHeld: false,
     jumpRising: false,
     crushed: false,
+    climbing: false,
   };
 }
 
@@ -111,19 +138,62 @@ export function maxJumpReach(tuning: PlayerTuning = PLAYER_TUNING): {
 export function step(
   state: PlayerState,
   input: ControlInput,
-  solids: readonly Aabb[],
+  solids: readonly CollisionBox[],
   dtMs: number,
   tuning: PlayerTuning = PLAYER_TUNING,
 ): PlayerState {
   const dt = dtMs / 1000;
+
+  // Ride the platform underfoot, then get out of anything that moved into the player (a mover
+  // sliding sideways into them, a vanishing platform reappearing around them).
+  const c = input.carry;
+  const carried = c
+    ? vec3(state.position.x + c.x, state.position.y + c.y, state.position.z + c.z)
+    : state.position;
+  const start = pushOut(carried, solids, tuning);
+  if (overlapping(start.x, start.y, start.z, solids, tuning).length > 0) {
+    // No clear spot nearby: squeezed between solids. Stay put; the game respawns the player.
+    return { ...state, velocity: vec3(0, 0, 0), crushed: true, climbing: false };
+  }
 
   // Timers: coyote refills while grounded, buffer is set on a fresh press.
   const pressed = input.jump && !state.jumpHeld;
   let coyoteMs = state.grounded ? tuning.coyoteMs : Math.max(0, state.coyoteMs - dtMs);
   let jumpBufferMs = pressed ? tuning.jumpBufferMs : Math.max(0, state.jumpBufferMs - dtMs);
 
-  // Horizontal: accelerate toward the target velocity.
   const { x: mx, z: mz } = clampLength(input.move.x, input.move.z, 1);
+
+  // Climbing: pushing into a climbable face moves the player up it with gravity off. Of several
+  // faces in reach (an inner corner), the one pushed into most counts.
+  const wall = climbContact(start, solids, tuning, { x: mx, z: mz });
+  if (wall && pressed && state.climbing) {
+    // Wall jump: kick off away from the wall and upwards, whatever the stick says.
+    const kick = vec3(
+      -wall.into.x * tuning.wallKickSpeed,
+      jumpVelocity(tuning) * tuning.wallKickUp,
+      -wall.into.z * tuning.wallKickSpeed,
+    );
+    const moved = moveAndCollide(start, kick, dt, solids, tuning);
+    return climbResult(moved.position, moved.velocity, false, moved.grounded, input, tuning);
+  }
+  // Pressing jump while standing at the foot of a wall is a normal jump (handled below).
+  const jumpingFromGround = pressed && state.grounded;
+  if (wall && !jumpingFromGround && mx * wall.into.x + mz * wall.into.z > CLIMB_PUSH) {
+    const topOutFrom = wall.box.max.y - tuning.climbTopOut;
+    if (start.y >= topOutFrom) {
+      const onTop = topOutSpot(start, wall, solids, tuning);
+      if (onTop) return climbResult(onTop, vec3(0, 0, 0), false, true, input, tuning);
+    }
+    // Climb straight up, pressing into the wall (collision zeroes it) so contact holds. With no
+    // room to step onto the top, hang just below it instead of climbing past the face.
+    const vy = Math.min(tuning.climbSpeed, Math.max(0, (topOutFrom - start.y) / dt));
+    const reachedTop = start.y >= topOutFrom - 1e-9;
+    const climb = vec3(wall.into.x, reachedTop ? 0 : vy, wall.into.z);
+    const moved = moveAndCollide(start, climb, dt, solids, tuning);
+    return climbResult(moved.position, vec3(0, moved.velocity.y, 0), true, false, input, tuning);
+  }
+
+  // Horizontal: accelerate toward the target velocity.
   const steering = mx !== 0 || mz !== 0;
   const accel = !state.grounded
     ? tuning.airAccel
@@ -151,19 +221,9 @@ export function step(
     vy *= tuning.jumpCutFactor;
     jumpRising = false;
   }
+  // Letting go of a wall: start falling from rest instead of keeping the climb speed.
+  if (state.climbing) vy = 0;
   vy = Math.max(vy - tuning.gravity * dt, -tuning.maxFallSpeed);
-
-  // Ride the platform underfoot, then get out of anything that moved into the player (a mover
-  // sliding sideways into them, a vanishing platform reappearing around them).
-  const c = input.carry;
-  const carried = c
-    ? vec3(state.position.x + c.x, state.position.y + c.y, state.position.z + c.z)
-    : state.position;
-  const start = pushOut(carried, solids, tuning);
-  if (overlapping(start.x, start.y, start.z, solids, tuning).length > 0) {
-    // No clear spot nearby: squeezed between solids. Stay put; the game respawns the player.
-    return { ...state, velocity: vec3(0, 0, 0), crushed: true };
-  }
 
   // Move and collide one axis at a time: vertical first so landing wins over wall contact.
   const moved = moveAndCollide(start, vec3(vx, vy, vz), dt, solids, tuning);
@@ -177,7 +237,97 @@ export function step(
     jumpHeld: input.jump,
     jumpRising: jumpRising && moved.velocity.y > 0,
     crushed: false,
+    climbing: false,
   };
+}
+
+/** The state after a climbing step (climb, top-out or wall kick). */
+function climbResult(
+  position: Vec3,
+  velocity: Vec3,
+  climbing: boolean,
+  grounded: boolean,
+  input: ControlInput,
+  tuning: PlayerTuning,
+): PlayerState {
+  return {
+    position,
+    velocity,
+    grounded,
+    coyoteMs: grounded ? tuning.coyoteMs : 0,
+    jumpBufferMs: 0,
+    jumpHeld: input.jump,
+    jumpRising: !climbing && !grounded && velocity.y > 0,
+    crushed: false,
+    climbing,
+  };
+}
+
+/**
+ * Where a climber steps onto the top of `wall`: just past its edge, standing on the box itself.
+ * Null when there is no room: the space straight above the climber and the landing spot must both
+ * be clear, so nothing at the top edge is passed through.
+ */
+function topOutSpot(
+  start: Vec3,
+  wall: ClimbFace,
+  solids: readonly CollisionBox[],
+  tuning: PlayerTuning,
+): Vec3 | null {
+  const { box, into } = wall;
+  const inset = tuning.halfWidth + tuning.climbReach;
+  const spot = vec3(
+    into.x !== 0 ? (into.x > 0 ? box.min.x : box.max.x) + into.x * inset : start.x,
+    box.max.y,
+    into.z !== 0 ? (into.z > 0 ? box.min.z : box.max.z) + into.z * inset : start.z,
+  );
+  const onBox =
+    spot.x > box.min.x && spot.x < box.max.x && spot.z > box.min.z && spot.z < box.max.z;
+  const clear = (p: Vec3): boolean => overlapping(p.x, p.y, p.z, solids, tuning).length === 0;
+  return onBox && clear(vec3(start.x, box.max.y, start.z)) && clear(spot) ? spot : null;
+}
+
+/** A climbable box face in reach, and the horizontal direction into it. */
+export interface ClimbFace {
+  readonly box: Aabb;
+  readonly into: { readonly x: number; readonly z: number };
+}
+
+/**
+ * The climbable side face the player is touching (within `climbReach`), or null. The body must
+ * overlap the face vertically and sideways, so standing on top of a climbable box does not count.
+ * With several faces in reach (an inner corner), the one `move` points into most wins.
+ */
+export function climbContact(
+  feet: Vec3,
+  solids: readonly CollisionBox[],
+  tuning: PlayerTuning = PLAYER_TUNING,
+  move: { readonly x: number; readonly z: number } = { x: 0, z: 0 },
+): ClimbFace | null {
+  const hw = tuning.halfWidth;
+  const reach = tuning.climbReach;
+  const faces: ClimbFace[] = [];
+  for (const box of solids) {
+    if (!box.climbable) continue;
+    if (feet.y >= box.max.y || feet.y + tuning.height <= box.min.y) continue;
+    const overlapsX = feet.x + hw > box.min.x && feet.x - hw < box.max.x;
+    const overlapsZ = feet.z + hw > box.min.z && feet.z - hw < box.max.z;
+    if (overlapsZ && near(feet.x + hw, box.min.x, reach)) faces.push({ box, into: { x: 1, z: 0 } });
+    if (overlapsZ && near(box.max.x, feet.x - hw, reach))
+      faces.push({ box, into: { x: -1, z: 0 } });
+    if (overlapsX && near(feet.z + hw, box.min.z, reach)) faces.push({ box, into: { x: 0, z: 1 } });
+    if (overlapsX && near(box.max.z, feet.z - hw, reach))
+      faces.push({ box, into: { x: 0, z: -1 } });
+  }
+  const push = (f: ClimbFace): number => move.x * f.into.x + move.z * f.into.z;
+  let best: ClimbFace | null = null;
+  for (const face of faces) if (!best || push(face) > push(best)) best = face;
+  return best;
+}
+
+/** True when `a` is at or just below `b`, within `reach` (a gap of 0..reach). */
+function near(a: number, b: number, reach: number): boolean {
+  return a <= b + 1e-9 && b - a <= reach;
 }
 
 /** Gap kept between the player and a wall after a horizontal hit, against float round-off. */
@@ -249,17 +399,20 @@ function moveAndCollide(
   }
   if (grounded || y !== start.y + vy * dt) vy = 0;
 
-  // X axis.
+  // X axis. The direction is read once: zeroing the velocity after the first hit must not flip
+  // how a second box hit in the same step is resolved (that snapped players through walls).
+  const movingRight = vx > 0;
   x += vx * dt;
   for (const box of overlapping(x, y, z, solids, tuning)) {
-    x = vx > 0 ? Math.min(x, box.min.x - hw - SKIN) : Math.max(x, box.max.x + hw + SKIN);
+    x = movingRight ? Math.min(x, box.min.x - hw - SKIN) : Math.max(x, box.max.x + hw + SKIN);
     vx = 0;
   }
 
-  // Z axis.
+  // Z axis (same as x).
+  const movingForward = vz > 0;
   z += vz * dt;
   for (const box of overlapping(x, y, z, solids, tuning)) {
-    z = vz > 0 ? Math.min(z, box.min.z - hw - SKIN) : Math.max(z, box.max.z + hw + SKIN);
+    z = movingForward ? Math.min(z, box.min.z - hw - SKIN) : Math.max(z, box.max.z + hw + SKIN);
     vz = 0;
   }
 

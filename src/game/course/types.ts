@@ -20,8 +20,10 @@ export interface Aabb {
  *   the player respawns on top of its centre.
  * - `hazard`: a kill floor or block (lava). It collides like ground, but touching it respawns the
  *   player at the last checkpoint.
+ * - `climbable`: a truss wall. It collides like any wall; pushing into one of its sides climbs it,
+ *   and reaching the top steps onto it. Drawn striped.
  */
-export type SolidKind = 'platform' | 'checkpoint' | 'hazard';
+export type SolidKind = 'platform' | 'checkpoint' | 'hazard' | 'climbable';
 
 /** A static box in the course, described by its centre and full size. */
 export interface Solid {

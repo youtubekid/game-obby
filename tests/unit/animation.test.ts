@@ -119,6 +119,26 @@ describe('stepAnimation', () => {
   });
 });
 
+describe('climbing pose', () => {
+  const climbing: MotionSample = { velocity: vec3(0, 3.5, 0), grounded: false, climbing: true };
+
+  it('reaches up with both arms and alternates them as the player climbs', () => {
+    let state = run(climbing, 20);
+    let spread = 0;
+    for (let i = 0; i < 60; i++) {
+      state = stepAnimation(state, climbing, STEP);
+      expect(state.pose.leftArm).toBeGreaterThan(1.5);
+      expect(state.pose.rightArm).toBeGreaterThan(1.5);
+      spread = Math.max(spread, Math.abs(state.pose.leftArm - state.pose.rightArm));
+    }
+    expect(spread).toBeGreaterThan(0.3);
+  });
+
+  it('keeps the facing while climbing straight up', () => {
+    expect(run(climbing, 30, createAnimationState(0.7)).facing).toBe(0.7);
+  });
+});
+
 describe('turnTowards', () => {
   it('takes the short way round across ±π', () => {
     const next = turnTowards(Math.PI - 0.1, -Math.PI + 0.1, 0.05);

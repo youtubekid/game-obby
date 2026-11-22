@@ -48,6 +48,7 @@ import {
   createPlayerState,
   PLAYER_TUNING,
   step as stepPlayer,
+  type CollisionBox,
   type PlayerState,
 } from './player/controller';
 import {
@@ -99,7 +100,8 @@ export class Game {
   readonly course: Course = course1;
   readonly input = new InputRouter();
   private readonly builtCourse: BuiltCourse;
-  private readonly solids: readonly Aabb[];
+  /** Static collision boxes, flagged where climbable. */
+  private readonly solids: readonly CollisionBox[];
   private readonly avatar: Avatar;
   private animation: AnimationState;
   private readonly camera: TargetCamera;
@@ -174,7 +176,10 @@ export class Game {
       .filter((solid) => solid.kind === 'hazard')
       .map(solidAabb);
     // Collision comes from the same data as the meshes.
-    this.solids = allSolids(this.course).map(solidAabb);
+    this.solids = allSolids(this.course).map((solid) => ({
+      ...solidAabb(solid),
+      climbable: solid.kind === 'climbable',
+    }));
 
     const spawn = this.course.stages[0]?.spawn ?? { x: 0, y: 0, z: 0 };
     this.run = createRunState(spawn);
@@ -252,9 +257,9 @@ export class Game {
   }
 
   /** Player state for tests: feet position, velocity, ground contact. */
-  get playerState(): { position: Vec3; velocity: Vec3; grounded: boolean } {
-    const { position, velocity, grounded } = this.player;
-    return { position, velocity, grounded };
+  get playerState(): { position: Vec3; velocity: Vec3; grounded: boolean; climbing: boolean } {
+    const { position, velocity, grounded, climbing } = this.player;
+    return { position, velocity, grounded, climbing };
   }
 
   /** Actions used by the latest simulation step. */

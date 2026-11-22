@@ -32,6 +32,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   T-017 playtest), T-010 done (blocky figure with run/jump/fall animation), T-011 done (checkpoint
   islands, killY, respawn; debug `run()`/`teleport`), T-012 done (lava and spinning bars; course 1 has
   a hazard stage 2), T-013 done (moving and vanishing platforms, crush detection; stage 3).
-  **Next step: `/next` → T-014 (climbable walls and balance beams).**
+  T-014 done (climbing, wall kick, top-out, beams; stage 4; fixed a two-box collision bug).
+  **Next step: `/next` → T-015 (run timer, splits, finish and results screen).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

@@ -331,17 +331,28 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-014 Climbable walls and balance beams
 
-- Status: Ready
+- Status: Done (2026-11-22)
 - Milestone: M2
 - Labels: feature
 - Goal: striped truss walls can be climbed by pushing into them; narrow beams test balance.
 - Acceptance criteria:
-  - [ ] Course kind `climbable`: while touching it and moving toward it, the player climbs up at climb speed,
+  - [x] Course kind `climbable`: while touching it and moving toward it, the player climbs up at climb speed,
         gravity off; jump kicks off the wall; reaching the top steps onto it.
-  - [ ] Beams are narrow `platform` solids (≤ 0.6 units wide); no special physics.
-  - [ ] Debug API: `player().climbing`.
+  - [x] Beams are narrow `platform` solids (≤ 0.6 units wide); no special physics.
+  - [x] Debug API: `player().climbing`.
 - Verification: unit tests for climb start/stop and top-out; e2e: teleport next to a wall, inject move into it →
   y increases and `climbing` is true.
+- Result: collision boxes carry an optional `climbable` flag (`CollisionBox`), so `step()` keeps its signature.
+  Pushing into a climbable side face within 0.05 m climbs at 3.5 m/s; at an inner corner the face pushed
+  into most wins. A fresh jump press while climbing kicks off (5 m/s away, 0.8 × jump up) regardless of
+  the stick; at the foot of a wall jump is a normal jump. Within 0.3 m of the top the player steps onto
+  it if the space above and the landing spot are clear and the spot is on the wall; otherwise they hang
+  just below the top. Letting go falls from rest. Climb pose (arms reaching up, alternating). Walls are
+  drawn as brown/cream stripes (visual pieces, merged per colour). Course 1 stage 4: 5 m wall, 0.5 m
+  beam, checkpoint `s4-end`. **Also fixed a T-005 collision bug**: when two boxes overlapped the player
+  on one horizontal axis in the same step, the second was resolved as if moving backwards and snapped
+  the player through to its far side (regression test added). 16 climb/animation/course unit tests,
+  2 e2e (climb + top-out at y 6; beam to checkpoint 3). Side-view screenshot and baselines reviewed.
 
 ### T-015 Run timer, stage splits, finish and results screen
 
@@ -380,7 +391,9 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
   - [ ] `course1.ts` has 5 stages, each ending at a checkpoint, finish at the end.
   - [ ] Pure reachability check: every required gap is within `maxJumpReach` with a safety margin.
   - [ ] Playtested end to end on desktop and on a phone (manual), including one run with a real gamepad
-        (deferred from T-009: stick directions, orbit speed, dead zone feel).
+        (deferred from T-009: stick directions, orbit speed, dead zone feel). Also judge: the run cycle in
+        motion (T-010), momentum when jumping off movers (T-013), and beam difficulty: support uses the
+        full 0.7 m footprint, so a 0.5 m beam is about 1.2 m wide to walk on (T-014).
 - Verification: unit tests for `validateCourse` + reachability on course1; e2e teleports to each checkpoint and
   asserts the run state advances; manual playtest notes in `docs/qa/`.
 

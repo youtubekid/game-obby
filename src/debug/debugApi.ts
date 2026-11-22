@@ -18,8 +18,11 @@ export interface GameDebugApi {
   meshCount(): number;
   /** Size of the loaded course; `meshes` is the number of merged course meshes (one per colour). */
   course(): { stages: number; solids: number; meshes: number };
-  /** Player feet position, velocity and ground contact after the latest simulation step. */
-  player(): { position: Vec3; velocity: Vec3; grounded: boolean };
+  /**
+   * Player feet position, velocity, ground contact and whether they are climbing a wall, after the
+   * latest simulation step.
+   */
+  player(): { position: Vec3; velocity: Vec3; grounded: boolean; climbing: boolean };
   /** Rendered centre of the player mesh (feet + half height, interpolated between steps). */
   playerMesh(): Vec3;
   /**
@@ -111,6 +114,7 @@ export function installDebugApi(version: string): GameDebugApi {
       position: { x: 0, y: 0, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
       grounded: false,
+      climbing: false,
     }),
     playerMesh: () => ({ x: 0, y: 0, z: 0 }),
     camera: () => ({

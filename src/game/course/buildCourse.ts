@@ -4,8 +4,14 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { solidColor } from './palette';
-import { allSolids, type Course, type Solid } from './types';
+import { solidPieces } from './palette';
+import { allSolids, type Course, type Vec3 } from './types';
+
+interface Piece {
+  readonly id: string;
+  readonly center: Vec3;
+  readonly size: Vec3;
+}
 
 export interface BuiltCourse {
   readonly meshes: readonly Mesh[];
@@ -17,24 +23,27 @@ export interface BuiltCourse {
  * draw call per colour, which keeps mobile GPUs happy (ADR 0006).
  */
 export function buildCourse(scene: Scene, course: Course, shadows?: ShadowGenerator): BuiltCourse {
-  const byColor = new Map<string, Solid[]>();
+  // Most solids are one box; climbable walls are drawn as a stack of stripes (solidPieces).
+  const byColor = new Map<string, Piece[]>();
   for (const solid of allSolids(course)) {
-    const color = solidColor(solid);
-    const group = byColor.get(color);
-    if (group) group.push(solid);
-    else byColor.set(color, [solid]);
+    solidPieces(solid).forEach((piece, i) => {
+      const entry = { id: `${solid.id}-${i}`, center: piece.center, size: piece.size };
+      const group = byColor.get(piece.color);
+      if (group) group.push(entry);
+      else byColor.set(piece.color, [entry]);
+    });
   }
 
   const meshes: Mesh[] = [];
   const materials: StandardMaterial[] = [];
-  for (const [color, solids] of byColor) {
-    const boxes = solids.map((solid) => {
+  for (const [color, pieces] of byColor) {
+    const boxes = pieces.map((piece) => {
       const box = CreateBox(
-        solid.id,
-        { width: solid.size.x, height: solid.size.y, depth: solid.size.z },
+        piece.id,
+        { width: piece.size.x, height: piece.size.y, depth: piece.size.z },
         scene,
       );
-      box.position.set(solid.center.x, solid.center.y, solid.center.z);
+      box.position.set(piece.center.x, piece.center.y, piece.center.z);
       return box;
     });
     const merged = boxes.length === 1 ? boxes[0] : Mesh.MergeMeshes(boxes, true, true);

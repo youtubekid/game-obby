@@ -75,6 +75,22 @@ describe('controller: ground and walls', () => {
     expect(s.position.z).toBeGreaterThanOrEqual(-3 + T.halfWidth);
   });
 
+  it('stops at the nearer face when walking into two boxes at once (regression)', () => {
+    // Two touching wall pieces ahead: both overlap the player in the same step. The second used
+    // to be resolved as if moving backwards and snapped the player to its far side.
+    const lower = box([3, 0, -5], [4, 1, 5]);
+    const upper = box([3, 1, -5], [20, 5, 5]);
+    for (const [dir, face] of [
+      [1, 3 - T.halfWidth],
+      [-1, -3 + T.halfWidth],
+    ] as const) {
+      const walls =
+        dir > 0 ? [lower, upper] : [box([-4, 0, -5], [-3, 1, 5]), box([-20, 1, -5], [-3, 5, 5])];
+      const s = run(standing(), [floor, ...walls], 120, { move: { x: dir, z: 0 }, jump: false });
+      expect(Math.abs(s.position.x - face)).toBeLessThan(0.01);
+    }
+  });
+
   it('bumps its head on a ceiling', () => {
     const ceiling = box([-5, 2.5, -5], [5, 3, 5]);
     let maxY = 0;
