@@ -63,7 +63,7 @@ test.describe('run timer, finish and results', () => {
   test('"Play again" restarts the run from the start', async ({ page }) => {
     await teleport(page, 0, 6, 100);
     await advanceSteps(page, 3);
-    await page.locator('.results-again').click();
+    await page.locator('#results .results-again').click();
     await advanceSteps(page, 2);
     const again = await run(page);
     expect(again).toMatchObject({

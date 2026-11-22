@@ -132,6 +132,50 @@ body {
   cursor: pointer;
 }
 
+.results-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.results-secondary {
+  min-width: 120px;
+  min-height: 48px;
+  border: 2px solid rgb(255 255 255 / 0.7);
+  border-radius: 24px;
+  background: transparent;
+  color: #fff;
+  font:
+    600 16px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.results-secondary:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.resume-body {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-best {
+  margin: -4px 0 12px;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.results-best.new-best,
+.results-splits tr.new-best td {
+  color: #ffd24d;
+  font-weight: 700;
+  opacity: 1;
+}
+
 .results-again:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 3px;

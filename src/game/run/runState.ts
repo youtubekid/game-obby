@@ -41,6 +41,31 @@ export function createRunState(start: Vec3, stages = 1): RunState {
   };
 }
 
+/**
+ * Continues a saved run: at its last checkpoint (`respawn`), with its deaths and splits, and the
+ * timer running from the saved time.
+ */
+export function resumeRun(
+  progress: {
+    readonly checkpoint: number;
+    readonly deaths: number;
+    readonly elapsedMs: number;
+    readonly splits: readonly (number | null)[];
+  },
+  respawn: Vec3,
+  stages: number,
+  nowMs: number,
+): RunState {
+  const fresh = createRunState(respawn, stages);
+  return {
+    ...fresh,
+    checkpoint: progress.checkpoint,
+    deaths: progress.deaths,
+    startedAtMs: nowMs - progress.elapsedMs,
+    splits: fresh.splits.map((s, i) => progress.splits[i] ?? s),
+  };
+}
+
 /** Starts the timer at `nowMs`, unless it is already running or the run is over. */
 export function startTimer(state: RunState, nowMs: number): RunState {
   if (state.startedAtMs !== null || state.finishedAtMs !== null) return state;

@@ -225,7 +225,7 @@ test('HUD and results fit the phone screen, and "Play again" works by touch', as
   await advanceSteps(page, 3);
   for (const size of [portrait, { width: portrait.height, height: portrait.width }]) {
     await page.setViewportSize(size);
-    for (const selector of ['.hud-bar', '#results', '.results-again']) {
+    for (const selector of ['.hud-bar', '#results', '#results .results-again']) {
       const box = await page.locator(selector).boundingBox();
       if (!box) throw new Error(`${selector} not visible`);
       expect(box.x).toBeGreaterThanOrEqual(0);
@@ -235,7 +235,7 @@ test('HUD and results fit the phone screen, and "Play again" works by touch', as
     }
   }
   await page.setViewportSize(portrait);
-  await page.locator('.results-again').tap();
+  await page.locator('#results .results-again').tap();
   await advanceSteps(page, 2);
   expect(await page.evaluate(() => window.__GAME__?.run().resultsVisible)).toBe(false);
 });

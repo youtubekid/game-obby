@@ -45,6 +45,7 @@ import {
   type Vanisher,
   type Vec3,
 } from './course/types';
+import { courseKey } from './course/fingerprint';
 import { validateCourse } from './course/validateCourse';
 import {
   createPlayerState,
@@ -67,6 +68,7 @@ import {
   hasFallen,
   reachCheckpoint,
   recordDeath,
+  resumeRun,
   stageTimes,
   standingOn,
   startTimer,
@@ -88,11 +90,26 @@ import {
   spinnerHits,
   touchesBox,
 } from './obstacles/motion';
+import {
+  browserStorage,
+  courseSave,
+  loadSave,
+  recordFinish,
+  saveProgress,
+  writeSave,
+  type CourseSave,
+  type RunProgress,
+  type SaveData,
+  type SaveStorage,
+} from './save/saveData';
 import { FixedStepper } from './sim/fixedStep';
 import { lerpVec3 } from './sim/interpolate';
 
 /** Fixed simulation step (60 Hz) used in every mode, so gameplay is frame-rate independent. */
 export const FIXED_STEP_MS = 1000 / 60;
+
+/** How often (in fixed steps) a run in progress is saved: every 5 s of play. */
+const PROGRESS_SAVE_STEPS = 300;
 
 /** The results screen ignores jump presses this soon after the finish, so a held jump can't skip it. */
 const RESULTS_INPUT_DELAY_MS = 800;
@@ -122,6 +139,12 @@ export class Game {
   /** The finish pad (empty if the course has none). */
   private readonly finishBox: readonly Aabb[];
   private readonly hud: Hud;
+  private readonly storage: SaveStorage;
+  /** Course name plus a fingerprint of its layout (`courseKey`). */
+  private readonly saveKey: string;
+  private save: SaveData;
+  /** A saved run waiting for "Continue" / "New run" on the prompt; null when there is none. */
+  private pendingResume: RunProgress | null = null;
   /** Jump state of the previous step, to see fresh presses on the results screen. */
   private jumpWasHeld = false;
   private readonly builtObstacles: BuiltObstacles;
@@ -203,8 +226,16 @@ export class Game {
     this.run = createRunState(spawn, this.course.stages.length);
     const finish = finishSolid(this.course);
     this.finishBox = finish ? [solidAabb(finish)] : [];
-    this.hud = new Hud(document, () => {
-      this.playAgain();
+    this.hud = new Hud(document, {
+      onPlayAgain: () => {
+        this.playAgain();
+      },
+      onContinue: () => {
+        this.resumeSavedRun();
+      },
+      onNewRun: () => {
+        this.discardSavedRun();
+      },
     });
     const pads = checkpoints(this.course);
     this.checkpointBoxes = pads.map(solidAabb);
@@ -213,6 +244,32 @@ export class Game {
       this.course.stages.findIndex((stage) => stage.solids.includes(pad)),
     );
     this.checkpointRespawns = pads.map(topCentre);
+
+    // Best times and a run in progress survive reloads (localStorage, or memory where blocked).
+    // Keyed by a fingerprint of the course data, so a changed layout starts fresh.
+    this.storage = browserStorage();
+    this.saveKey = courseKey(this.course);
+    this.save = loadSave(this.storage);
+    const progress = courseSave(this.save, this.saveKey).progress;
+    const savedStage = progress ? this.checkpointStages[progress.checkpoint] : undefined;
+    if (progress && savedStage === undefined) {
+      // Unusable (points at a checkpoint the course doesn't have): forget it.
+      this.updateSave((data) => saveProgress(data, this.saveKey, null));
+    } else if (progress && savedStage !== undefined) {
+      this.pendingResume = progress;
+      // The player continues in the stage after the checkpoint's.
+      const next = this.course.stages[Math.min(savedStage + 1, this.course.stages.length - 1)];
+      this.hud.showResume({
+        stageName: next?.name ?? '',
+        elapsedMs: progress.elapsedMs,
+        deaths: progress.deaths,
+      });
+    }
+
+    // Save the run's time when the page is hidden or closed (tab switch, app switch, reload).
+    document.addEventListener('visibilitychange', this.onPageHidden);
+    window.addEventListener('pagehide', this.onPageHide);
+
     this.player = createPlayerState(spawn);
     this.previousPlayer = this.player;
     this.avatar = createAvatar(this.scene, shadows);
@@ -341,19 +398,29 @@ export class Game {
     // After the finish the player stands still behind the results screen; a fresh jump press
     // (Space, gamepad A, touch Jump), once the screen has been up for a moment, plays again.
     const finishedAt = this.run.finishedAtMs;
-    if (finishedAt !== null) {
+    // On the prompt and results screens a fresh jump press (Space, gamepad A, touch Jump) chooses
+    // the focused button, by default "Continue" / "Play again"; the player waits meanwhile.
+    if (this.pendingResume) {
+      if (jumpPressed) {
+        if (!this.hud.activateFocused()) this.resumeSavedRun();
+        this.holdJump();
+        return;
+      }
+    } else if (finishedAt !== null) {
+      // Ignored for a moment after the finish, so a jump held from the last leap can't skip it.
       if (jumpPressed && this.simTimeMs - finishedAt >= RESULTS_INPUT_DELAY_MS) {
-        this.playAgain();
-        // The restart press is still held: don't let it count as a jump (or start the clock).
-        this.player = { ...this.player, jumpHeld: true };
-        this.previousPlayer = this.player;
+        if (!this.hud.activateFocused()) this.playAgain();
+        this.holdJump();
         return;
       }
     } else if (jumpPressed || input.move.x !== 0 || input.move.y !== 0) {
       // The timer starts with the first move or fresh jump press, not at spawn.
       this.run = startTimer(this.run, this.simTimeMs - deltaMs);
     }
-    const actions = finishedAt === null ? input : { ...input, move: { x: 0, y: 0 }, jump: false };
+    // Keep the saved time current, so reloading mid-stage doesn't give time back.
+    if (this.steps % PROGRESS_SAVE_STEPS === 0) this.saveProgress();
+    const waiting = finishedAt !== null || this.pendingResume !== null;
+    const actions = waiting ? { ...input, move: { x: 0, y: 0 }, jump: false } : input;
     this.previousPlayer = this.player;
     this.previousCamera = this.cameraState;
     // Orbit first, so this step's move already uses the new camera direction.
@@ -398,24 +465,108 @@ export class Game {
     const respawn = this.checkpointRespawns[pad];
     const stage = this.checkpointStages[pad];
     if (respawn && stage !== undefined) {
+      const before = this.run.checkpoint;
       this.run = reachCheckpoint(this.run, pad, respawn, now, stage);
+      if (this.run.checkpoint !== before) this.saveProgress();
     }
     // A death wins over reaching the finish in the same step.
     const cause = this.player.crushed ? 'crush' : this.deathCause(position);
     if (cause) {
       this.run = recordDeath(this.run, cause);
       this.placePlayer(this.run.respawn);
+      this.saveProgress();
       return;
     }
     if (standingOn(position, grounded, PLAYER_TUNING.halfWidth, this.finishBox) === 0) {
+      // A run whose timer never started (no input, e.g. teleported in a test) is no record.
+      const timed = this.run.startedAtMs !== null;
       this.run = finishRun(this.run, now);
+      const total = elapsedMs(this.run, now);
+      const times = stageTimes(this.run.splits);
+      let newBestTotal = false;
+      let newBestStages = times.map(() => false);
+      this.updateSave((data) => {
+        if (!timed) return saveProgress(data, this.saveKey, null);
+        const record = recordFinish(data, this.saveKey, total, times);
+        newBestTotal = record.newBestTotal;
+        newBestStages = record.newBestStages;
+        return record.data;
+      });
       this.hud.showResults({
-        totalMs: elapsedMs(this.run, now),
+        totalMs: total,
         deaths: this.run.deaths,
-        stageTimes: stageTimes(this.run.splits),
+        stageTimes: times,
         stageNames: this.course.stages.map((s) => s.name),
+        bestTotalMs: courseSave(this.save, this.saveKey).bestTotalMs,
+        newBestTotal,
+        newBestStages,
       });
     }
+  }
+
+  /**
+   * Saves the run in progress (from the first checkpoint on, while it runs), so a reload can
+   * continue it. Called at checkpoints and deaths, every few seconds, and when the page is hidden.
+   */
+  private saveProgress(): void {
+    const run = this.run;
+    if (run.checkpoint < 0 || run.finishedAtMs !== null || this.pendingResume) return;
+    this.updateSave((data) =>
+      saveProgress(data, this.saveKey, {
+        checkpoint: run.checkpoint,
+        deaths: run.deaths,
+        elapsedMs: elapsedMs(run, this.simTimeMs),
+        splits: [...run.splits],
+      }),
+    );
+  }
+
+  /**
+   * Changes the saved data and writes it. Reads storage first, so another open tab's newer
+   * records (e.g. a best time) are kept rather than overwritten with this tab's stale copy.
+   */
+  private updateSave(change: (data: SaveData) => SaveData): void {
+    this.save = change(loadSave(this.storage));
+    writeSave(this.storage, this.save);
+  }
+
+  private readonly onPageHidden = (): void => {
+    if (document.visibilityState === 'hidden') this.saveProgress();
+  };
+
+  private readonly onPageHide = (): void => {
+    this.saveProgress();
+  };
+
+  /** "Continue": picks the saved run up at its checkpoint, with its time, deaths and splits. */
+  private resumeSavedRun(): void {
+    const progress = this.pendingResume;
+    if (!progress) return;
+    const respawn = this.checkpointRespawns[progress.checkpoint];
+    this.pendingResume = null;
+    this.hud.hideResume();
+    if (!respawn) return;
+    this.run = resumeRun(progress, respawn, this.course.stages.length, this.simTimeMs);
+    this.placePlayer(respawn);
+  }
+
+  /** "New run": forgets the saved run; the player starts from the course start. */
+  private discardSavedRun(): void {
+    if (!this.pendingResume) return;
+    this.pendingResume = null;
+    this.hud.hideResume();
+    this.updateSave((data) => saveProgress(data, this.saveKey, null));
+  }
+
+  /** After a jump press chose a menu option, keep it from also making the player jump. */
+  private holdJump(): void {
+    this.player = { ...this.player, jumpHeld: true };
+    this.previousPlayer = this.player;
+  }
+
+  /** Saved best times and run in progress for this course, for tests. */
+  get saveInfo(): CourseSave {
+    return courseSave(this.save, this.saveKey);
   }
 
   /** What, if anything, kills the player standing at `feet` at the current simulation time. */
@@ -488,6 +639,7 @@ export class Game {
     splits: (number | null)[];
     finished: boolean;
     resultsVisible: boolean;
+    resumeVisible: boolean;
   } {
     return {
       checkpoint: this.run.checkpoint,
@@ -497,6 +649,7 @@ export class Game {
       splits: [...this.run.splits],
       finished: this.run.finishedAtMs !== null,
       resultsVisible: this.hud.resultsVisible,
+      resumeVisible: this.hud.resumeVisible,
     };
   }
 
@@ -554,6 +707,8 @@ export class Game {
     this.avatar.dispose();
     this.builtObstacles.dispose();
     this.hud.dispose();
+    document.removeEventListener('visibilitychange', this.onPageHidden);
+    window.removeEventListener('pagehide', this.onPageHide);
     this.builtCourse.dispose();
     this.scene.dispose();
   }

@@ -380,16 +380,27 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-016 Save best times and resume from last checkpoint
 
-- Status: Ready
+- Status: Done (2026-11-22)
 - Milestone: M2
 - Labels: feature
 - Goal: best total time and best splits survive a reload; reopening the game offers "continue from checkpoint".
 - Acceptance criteria:
-  - [ ] Pure `src/game/save/saveData.ts` with a versioned schema, parsing that tolerates corrupt/missing data, and
+  - [x] Pure `src/game/save/saveData.ts` with a versioned schema, parsing that tolerates corrupt/missing data, and
         an injected storage interface (localStorage in the browser, in-memory in tests and private windows).
-  - [ ] Results screen marks new bests.
+  - [x] Results screen marks new bests.
 - Verification: unit tests (round-trip, corrupt data, schema version bump); e2e: finish a run, reload →
   `save()` debug getter shows the best time.
+- Result: schema v1 under `game1.save`, keyed per course by `courseKey()` = name + a hash of the course data,
+  so a changed layout (e.g. T-017) starts fresh and older layouts' entries are pruned on write. Stores the
+  best total, best time per stage and the run in progress (checkpoint, deaths, time, splits). Parsing never
+  throws, keeps valid parts, ignores other versions; storage errors are swallowed; `browserStorage()` falls
+  back to memory. Progress is saved at checkpoints, deaths, every 5 s and on page hide/close (so a reload
+  doesn't rewind the clock), re-reading storage before each write (two tabs don't overwrite each other's
+  bests). On load a "Continue your run?" prompt (Continue / New run; a jump press picks the focused
+  button) resumes at the checkpoint with time, deaths and splits. Results show "New best time!" or the
+  best, and ★ on new stage bests; an untimed run (no input) is not recorded. Debug API `save()`,
+  `run().resumeVisible`. 13 unit tests, 8 e2e (incl. reload mid-run, pagehide time, focused-button
+  choice). Resume prompt screenshot reviewed.
 
 ### T-017 Prototype course: five stages
 

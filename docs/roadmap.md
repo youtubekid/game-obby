@@ -34,6 +34,7 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   a hazard stage 2), T-013 done (moving and vanishing platforms, crush detection; stage 3).
   T-014 done (climbing, wall kick, top-out, beams; stage 4; fixed a two-box collision bug).
   T-015 done (finish, run timer and splits, HUD and results screen with play again).
-  **Next step: `/next` → T-016 (save best times and resume).**
+  T-016 done (best times and resume saved per course layout; continue prompt).
+  **Next step: `/next` → T-017 (prototype course: five stages, reachability check, playtest).**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

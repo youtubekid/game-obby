@@ -64,6 +64,22 @@ export interface GameDebugApi {
     splits: (number | null)[];
     finished: boolean;
     resultsVisible: boolean;
+    /** The "Continue your run?" prompt is showing (a saved run was found on load). */
+    resumeVisible: boolean;
+  };
+  /**
+   * Saved data for the current course: best total time, best time per stage (ms, null = none) and
+   * the run in progress (last checkpoint, deaths, time and splits; null = none).
+   */
+  save(): {
+    bestTotalMs: number | null;
+    bestStageMs: readonly (number | null)[];
+    progress: {
+      checkpoint: number;
+      deaths: number;
+      elapsedMs: number;
+      splits: readonly (number | null)[];
+    } | null;
   };
   /**
    * Moving and vanishing platforms after the latest step: each mover's box centre, and whether each
@@ -146,7 +162,9 @@ export function installDebugApi(version: string): GameDebugApi {
       splits: [],
       finished: false,
       resultsVisible: false,
+      resumeVisible: false,
     }),
+    save: () => ({ bestTotalMs: null, bestStageMs: [], progress: null }),
     obstacles: () => ({ spinners: [] }),
     platforms: () => ({ movers: [], vanishers: [] }),
     debug: { teleport: () => undefined },
@@ -171,6 +189,7 @@ export function attachGame(api: GameDebugApi, game: Game, renderer: RendererKind
   api.touch = () => ({ visible: game.touchControlsVisible });
   api.avatar = () => game.avatarInfo;
   api.run = () => game.runInfo;
+  api.save = () => game.saveInfo;
   api.obstacles = () => game.obstacleInfo;
   api.platforms = () => game.platformInfo;
   api.debug = {
