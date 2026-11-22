@@ -1,10 +1,11 @@
 import { vec3, type Course } from './types';
 
 /**
- * The first course. Stub for now: stage 1 is a start island and a row of stepping platforms
- * heading +z; stage 2 introduces hazards (a lava pool crossed by a stepping stone, then a low
- * spinning bar to jump over); stage 3 adds a moving ferry and two vanishing platforms; stage 4 a
- * climbable wall and a balance beam. The full five-stage layout comes in T-017.
+ * The first course: five stages heading +z, each introducing one obstacle family and ending on a
+ * checkpoint island. Stage 1: stepping platforms. Stage 2: hazards (a lava pool crossed by a
+ * stepping stone, a low spinning bar to jump over). Stage 3: a moving ferry and two vanishing
+ * platforms. Stage 4: a climbable wall and a balance beam. Stage 5 mixes them all up to the finish.
+ * Every stage is checked to be passable with a safety margin (`checkReachability`).
  * Units: 1 = one metre; platform tops sit on whole or half metres to keep jumps readable.
  */
 export const course1: Course = {
@@ -128,8 +129,70 @@ export const course1: Course = {
           size: vec3(0.5, 1, 9),
           color: '#c9a36b',
         },
-        // The finish: standing on it ends the run.
-        { id: 's4-finish', kind: 'finish', center: vec3(0, 5.5, 100), size: vec3(6, 1, 6) },
+        { id: 's4-end', kind: 'checkpoint', center: vec3(0, 5.5, 100), size: vec3(6, 1, 6) },
+      ],
+    },
+    {
+      // Mixes every family: a ferry over lava, a sweeper on a landing island, a climb, a beam and
+      // vanishing platforms up to the finish.
+      name: 'Stage 5: The gauntlet',
+      spawn: vec3(0, 6, 104.5),
+      solids: [
+        { id: 's5-start', kind: 'platform', center: vec3(0, 5.5, 104.5), size: vec3(6, 1, 3) },
+        // Lava, flush with the ledge: the ferry is the only way across (10 m is too far to jump).
+        { id: 's5-lava', kind: 'hazard', center: vec3(0, 5.5, 111), size: vec3(6, 1, 10) },
+        { id: 's5-mid', kind: 'platform', center: vec3(0, 5.5, 119), size: vec3(6, 1, 6) },
+        // Truss wall rising 4.5 m from the island's far edge.
+        { id: 's5-wall', kind: 'climbable', center: vec3(0, 8, 123.5), size: vec3(6, 5, 3) },
+        {
+          id: 's5-beam',
+          kind: 'platform',
+          center: vec3(0, 10, 129.5),
+          size: vec3(0.5, 1, 9),
+          color: '#c9a36b',
+        },
+        { id: 's5-finish', kind: 'finish', center: vec3(0, 10, 145.5), size: vec3(6, 1, 6) },
+      ],
+      movers: [
+        {
+          // Rides just above the lava (bottom on its top face) from the ledge to the island.
+          id: 's5-ferry',
+          kind: 'mover',
+          size: vec3(3, 0.5, 3),
+          waypoints: [vec3(0, 6.25, 108.5), vec3(0, 6.25, 113.5)],
+          speed: 2.2,
+          mode: 'pingpong',
+        },
+      ],
+      spinners: [
+        {
+          // Turns the other way from stage 2's sweeper.
+          id: 's5-sweeper',
+          kind: 'spinner',
+          pivot: vec3(0, 6.35, 119),
+          armLength: 2.4,
+          thickness: 0.35,
+          angularSpeed: -2,
+        },
+      ],
+      vanishers: [
+        {
+          id: 's5-blink1',
+          kind: 'vanisher',
+          center: vec3(0, 10.25, 136),
+          size: vec3(2.5, 0.5, 2.5),
+          onMs: 1800,
+          offMs: 1200,
+        },
+        {
+          id: 's5-blink2',
+          kind: 'vanisher',
+          center: vec3(0, 10.25, 140),
+          size: vec3(2.5, 0.5, 2.5),
+          onMs: 1800,
+          offMs: 1200,
+          phaseMs: 1500,
+        },
       ],
     },
   ],

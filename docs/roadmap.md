@@ -35,6 +35,8 @@ Exit criteria for each milestone are refined in `game-design.md` and `backlog.md
   T-014 done (climbing, wall kick, top-out, beams; stage 4; fixed a two-box collision bug).
   T-015 done (finish, run timer and splits, HUD and results screen with play again).
   T-016 done (best times and resume saved per course layout; continue prompt).
-  **Next step: `/next` → T-017 (prototype course: five stages, reachability check, playtest).**
+  T-017 built (five-stage course 1 with a gauntlet finale, reachability check) but **blocked on a manual
+  playtest by the user** (`docs/qa/playtest-m2.md`: desktop, phone, gamepad; course length).
+  **Next step: `/next` → T-018 (mobile performance pass); then the user's playtest closes T-017.**
 - Not yet done: GitHub remote + Cloudflare secrets, production `GAME_BASE_PATH` and `routes` in `wrangler.toml`,
   Linux visual baselines (CI skips visual tests until they are committed).

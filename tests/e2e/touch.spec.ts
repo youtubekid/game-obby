@@ -221,7 +221,7 @@ test('HUD and results fit the phone screen, and "Play again" works by touch', as
   await openGame(page, 'webgl2', { freeze: 10, settleFrames: 2, query: '&touch=1' });
   const portrait = page.viewportSize();
   if (!portrait) throw new Error('No viewport');
-  await page.evaluate(() => window.__GAME__?.debug.teleport(0, 6, 100));
+  await page.evaluate(() => window.__GAME__?.debug.teleport(0, 10.5, 145.5));
   await advanceSteps(page, 3);
   for (const size of [portrait, { width: portrait.height, height: portrait.width }]) {
     await page.setViewportSize(size);

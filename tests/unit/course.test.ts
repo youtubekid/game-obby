@@ -173,7 +173,8 @@ describe('checkpoints', () => {
     expect(stages.at(-1)?.solids.filter((s) => s.kind === 'finish')).toHaveLength(1);
     // Checkpoint i completes stage i; the finish completes the last one.
     expect(checkpoints(course1)).toHaveLength(stages.length - 1);
-    expect(finishSolid(course1)?.id).toBe('s4-finish');
+    expect(stages).toHaveLength(5);
+    expect(finishSolid(course1)?.id).toBe('s5-finish');
   });
 });
 

@@ -12,7 +12,7 @@ const teleport = (page: Page, x: number, y: number, z: number) =>
   page.evaluate(([px, py, pz]) => window.__GAME__?.debug.teleport(px, py, pz), [x, y, z] as const);
 
 const STEP_MS = 1000 / 60;
-// Course 1: checkpoint 0 top at (0, 1, 19); finish pad top at (0, 6, 100).
+// Course 1: checkpoint 0 top at (0, 1, 19); finish pad top at (0, 10.5, 145.5).
 
 test.describe('run timer, finish and results', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -41,7 +41,7 @@ test.describe('run timer, finish and results', () => {
     await page.evaluate(() => window.__GAME__?.input.clear());
     await teleport(page, 0, 1, 19); // checkpoint 0: split for stage 1
     await advanceSteps(page, 3);
-    await teleport(page, 0, 6, 100); // finish
+    await teleport(page, 0, 10.5, 145.5); // finish
     await advanceSteps(page, 3);
 
     const finished = await run(page);
@@ -52,7 +52,7 @@ test.describe('run timer, finish and results', () => {
     await expect(page.locator('#results')).toBeVisible();
     await expect(page.locator('#results h2')).toHaveText('Finished!');
     // One row per stage; skipped stages show a dash.
-    await expect(page.locator('.results-splits tr')).toHaveCount(4);
+    await expect(page.locator('.results-splits tr')).toHaveCount(5);
     await expect(page.locator('.results-splits td').nth(1)).toHaveText('–');
 
     // Frozen after the finish.
@@ -61,7 +61,7 @@ test.describe('run timer, finish and results', () => {
   });
 
   test('"Play again" restarts the run from the start', async ({ page }) => {
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     await page.locator('#results .results-again').click();
     await advanceSteps(page, 2);
@@ -79,7 +79,7 @@ test.describe('run timer, finish and results', () => {
   });
 
   test('a fresh jump press plays again, but not straight after the finish', async ({ page }) => {
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     // Pressing jump right away is ignored (could be a held jump from the last leap).
     await page.evaluate(() => window.__GAME__?.input.set({ jump: true }));
@@ -103,7 +103,7 @@ test.describe('run timer, finish and results', () => {
   });
 
   test('nothing counts after the finish (no deaths behind the results)', async ({ page }) => {
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     await teleport(page, 20, -20, 100); // below killY
     await advanceSteps(page, 3);

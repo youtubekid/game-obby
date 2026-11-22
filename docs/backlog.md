@@ -404,20 +404,30 @@ Worked top to bottom by `/next`. Status: `Ready` · `In progress` · `Blocked: <
 
 ### T-017 Prototype course: five stages
 
-- Status: Ready
+- Status: Blocked: manual playtest by the user (checklist in `docs/qa/playtest-m2.md`)
 - Milestone: M2
 - Labels: feature, content
 - Goal: the full first course with ~5 stages per the GDD (one obstacle family introduced per stage, last stage
   mixes them), placeholder colours, about 10 minutes for a first run.
 - Acceptance criteria:
-  - [ ] `course1.ts` has 5 stages, each ending at a checkpoint, finish at the end.
-  - [ ] Pure reachability check: every required gap is within `maxJumpReach` with a safety margin.
+  - [x] `course1.ts` has 5 stages, each ending at a checkpoint, finish at the end.
+  - [x] Pure reachability check: every required gap is within `maxJumpReach` with a safety margin.
   - [ ] Playtested end to end on desktop and on a phone (manual), including one run with a real gamepad
         (deferred from T-009: stick directions, orbit speed, dead zone feel). Also judge: the run cycle in
         motion (T-010), momentum when jumping off movers (T-013), and beam difficulty: support uses the
         full 0.7 m footprint, so a 0.5 m beam is about 1.2 m wide to walk on (T-014).
 - Verification: unit tests for `validateCourse` + reachability on course1; e2e teleports to each checkpoint and
   asserts the run state advances; manual playtest notes in `docs/qa/`.
+- Progress (2026-11-22): stages 1–4 unchanged (stage 4 ends on checkpoint `s4-end` again); new stage 5 "The
+  gauntlet" mixes a ferry over lava, a reverse sweeper, a climb, a beam and vanishers up to the gold finish.
+  Pure `course/reachability.ts`: surfaces (non-hazard solids, mover waypoints, vanishers) linked by running
+  jumps (controller physics, 20 % margin on distance and rise, footprint overhang), mover rides and climbs
+  (face within the jump arc at that distance); each stage's end must be reachable from its spawn. Known
+  limits are documented in the module (no vanisher timing, no clearance, spinners not modelled). Runs at
+  startup in dev builds and in unit tests. 9 reachability unit tests, 1 e2e walking every checkpoint from
+  the course data to the finish. Stage 5 screenshot reviewed. **Open:** the manual playtest (AC 3) and the
+  "≈ 10 minutes for a first run" goal: stages are still short (estimated 2–3 min), so length is a playtest
+  decision. Record results in `docs/qa/playtest-m2.md`.
 
 ### T-018 Mobile performance pass
 

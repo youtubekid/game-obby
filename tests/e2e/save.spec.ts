@@ -42,7 +42,7 @@ test.describe('saving best times and resuming', () => {
   test('a finished run saves the best time, which survives a reload', async ({ page }) => {
     expect((await save(page)).bestTotalMs).toBeNull();
     await moveFor(page, 30);
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     const total = (await run(page)).elapsedMs;
     expect(total).toBeGreaterThan(0);
@@ -58,7 +58,7 @@ test.describe('saving best times and resuming', () => {
 
   test('a slower run keeps the old best and says so; stage bests are starred', async ({ page }) => {
     await moveFor(page, 10);
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     const best = (await run(page)).elapsedMs;
     // First run: its only completed stage (the last) is a new stage best.
@@ -67,7 +67,7 @@ test.describe('saving best times and resuming', () => {
 
     await page.locator('#results .results-again').click();
     await moveFor(page, 40);
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     await expect(page.locator('.results-best')).toHaveText(/^Best 0:00\.\d\d$/);
     // Slower in the same stage: no star this time.
@@ -76,7 +76,7 @@ test.describe('saving best times and resuming', () => {
   });
 
   test('a run whose timer never started is not saved as a best', async ({ page }) => {
-    await teleport(page, 0, 6, 100);
+    await teleport(page, 0, 10.5, 145.5);
     await advanceSteps(page, 3);
     expect((await run(page)).finished).toBe(true);
     expect((await save(page)).bestTotalMs).toBeNull();

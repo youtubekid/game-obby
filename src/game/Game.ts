@@ -46,6 +46,7 @@ import {
   type Vec3,
 } from './course/types';
 import { courseKey } from './course/fingerprint';
+import { checkReachability } from './course/reachability';
 import { validateCourse } from './course/validateCourse';
 import {
   createPlayerState,
@@ -204,7 +205,12 @@ export class Game {
 
     // Catch authoring mistakes early in dev and tests; production trusts the unit-tested data.
     if (import.meta.env.DEV || options.test) {
-      const errors = validateCourse(this.course);
+      // Reachability only in dev builds, so it stays out of the production bundle (unit tests
+      // check shipped courses anyway).
+      const errors = [
+        ...validateCourse(this.course),
+        ...(import.meta.env.DEV ? checkReachability(this.course) : []),
+      ];
       if (errors.length > 0) throw new Error(`Invalid course: ${errors.join('; ')}`);
     }
     this.builtCourse = buildCourse(this.scene, this.course, shadows);
